@@ -1,128 +1,146 @@
 // web_handlers_backup.cpp — Config export/import and LittleFS snapshot management.
+//
+// Export: iterates the "ulanzi" and "wifi" NVS namespaces directly, capturing
+// every key regardless of type, so new settings are automatically included.
+// Format: key=TYPE:value  (u8/i8/u16/i16/u32/i32/str/blob)
+// Import: writes each key back to NVS via Preferences using the stored type,
+// then restarts — no need to parse into globals.
 #include "web_handlers_backup.h"
 #include "globals.h"
 #include "nvs_settings.h"
 #include <LittleFS.h>
+#include <Preferences.h>
+#include <nvs.h>
 #include "web/backup.h"
+#include "esp_idf_version.h"
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── NVS namespace dump ────────────────────────────────────────────────────────
+// Iterates every key in one NVS namespace and appends "key=TYPE:value\n" lines.
+// Compatible with ESP-IDF 4.x (Arduino ESP32 2.x) and ESP-IDF 5.x (3.x).
 
-static String colorToHex(CRGB c) {
-  char buf[8];
-  snprintf(buf, sizeof(buf), "#%02X%02X%02X", c.r, c.g, c.b);
-  return String(buf);
-}
+static void dumpNvsNamespace(const char* ns, String& out) {
+  out += "["; out += ns; out += "]\n";
 
-static CRGB hexToColor(const String& s) {
-  if (s.length() == 7 && s[0] == '#') {
-    long n = strtol(s.c_str() + 1, nullptr, 16);
-    return CRGB((n >> 16) & 0xFF, (n >> 8) & 0xFF, n & 0xFF);
+  nvs_handle_t handle;
+  if (nvs_open(ns, NVS_READONLY, &handle) != ESP_OK) return;
+
+  nvs_iterator_t it = nullptr;
+
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_err_t err = nvs_entry_find("nvs", ns, NVS_TYPE_ANY, &it);
+  while (err == ESP_OK && it) {
+#else
+  it = nvs_entry_find("nvs", ns, NVS_TYPE_ANY);
+  while (it) {
+#endif
+    nvs_entry_info_t info;
+    nvs_entry_info(it, &info);
+
+    out += info.key;
+    out += "=";
+
+    switch (info.type) {
+      case NVS_TYPE_U8: {
+        uint8_t v = 0; nvs_get_u8(handle, info.key, &v);
+        out += "u8:"; out += v;
+      } break;
+      case NVS_TYPE_I8: {
+        int8_t v = 0; nvs_get_i8(handle, info.key, &v);
+        out += "i8:"; out += (int)v;
+      } break;
+      case NVS_TYPE_U16: {
+        uint16_t v = 0; nvs_get_u16(handle, info.key, &v);
+        out += "u16:"; out += v;
+      } break;
+      case NVS_TYPE_I16: {
+        int16_t v = 0; nvs_get_i16(handle, info.key, &v);
+        out += "i16:"; out += (int)v;
+      } break;
+      case NVS_TYPE_U32: {
+        uint32_t v = 0; nvs_get_u32(handle, info.key, &v);
+        out += "u32:"; out += v;
+      } break;
+      case NVS_TYPE_I32: {
+        int32_t v = 0; nvs_get_i32(handle, info.key, &v);
+        out += "i32:"; out += v;
+      } break;
+      case NVS_TYPE_U64: {
+        uint64_t v = 0; nvs_get_u64(handle, info.key, &v);
+        out += "u64:";
+        out += String((uint32_t)(v >> 32));
+        out += String((uint32_t)v);
+      } break;
+      case NVS_TYPE_I64: {
+        int64_t v = 0; nvs_get_i64(handle, info.key, &v);
+        out += "i64:"; out += String((long)v);
+      } break;
+      case NVS_TYPE_STR: {
+        size_t len = 0;
+        nvs_get_str(handle, info.key, nullptr, &len);
+        out += "str:";
+        if (len > 0) {
+          char* buf = new char[len];
+          nvs_get_str(handle, info.key, buf, &len);
+          out += buf;
+          delete[] buf;
+        }
+      } break;
+      case NVS_TYPE_BLOB: {
+        size_t len = 0;
+        nvs_get_blob(handle, info.key, nullptr, &len);
+        out += "blob:";
+        if (len > 0) {
+          uint8_t* buf = new uint8_t[len];
+          nvs_get_blob(handle, info.key, buf, &len);
+          for (size_t i = 0; i < len; i++) {
+            char h[3]; snprintf(h, 3, "%02X", buf[i]); out += h;
+          }
+          delete[] buf;
+        }
+      } break;
+      default:
+        out += "skip:";
+        break;
+    }
+    out += "\n";
+
+#if ESP_IDF_VERSION_MAJOR >= 5
+    err = nvs_entry_next(&it);
+#else
+    it = nvs_entry_next(it);
+#endif
   }
-  return CRGB(0, 0, 0);
+  nvs_release_iterator(it);
+  nvs_close(handle);
 }
 
-// ── Export ────────────────────────────────────────────────────────────────────
+// ── Build export text ─────────────────────────────────────────────────────────
 
 static String buildExportText() {
   String out;
-  out.reserve(2200);
+  out.reserve(3000);
 
   out += "# Ulanzi Config Backup\n";
   out += "# Device: "; out += mdnsName; out += "\n";
   out += "# Firmware: "; out += FIRMWARE_VERSION; out += "\n";
-  out += "# (keep this file safe — contains WiFi credentials)\n\n";
+  out += "# Format: key=TYPE:value  (bool=u8, colors=u32 packed RGB, floats=blob hex)\n";
+  out += "# (keep this file safe -- contains WiFi credentials)\n\n";
 
-  out += "[ulanzi]\n";
-  out += "auto_br=";          out += autoBrightnessEnabled ? "true" : "false"; out += "\n";
-  out += "brightness=";       out += currentBrightness;                        out += "\n";
-  out += "br_mode=";          out += (uint8_t)brightnessMode;                  out += "\n";
-  out += "buz_boot_en=";      out += buzzerBootEnabled   ? "true" : "false";   out += "\n";
-  out += "buz_boot_vol=";     out += buzzerBootVolume;                         out += "\n";
-  out += "buz_poc_en=";       out += buzzerPocsagEnabled ? "true" : "false";   out += "\n";
-  out += "buz_poc_vol=";      out += buzzerPocsagVolume;                       out += "\n";
-  out += "buz_clk_en=";       out += buzzerClickEnabled  ? "true" : "false";   out += "\n";
-  out += "buz_clk_vol=";      out += buzzerClickVolume;                        out += "\n";
-  out += "rot_en=";           out += autoRotateEnabled   ? "true" : "false";   out += "\n";
-  out += "rot_sec=";          out += autoRotateIntervalSec;                    out += "\n";
-  out += "ota_en=";           out += otaEnabled          ? "true" : "false";   out += "\n";
-  out += "ota_port=";         out += otaPort;                                  out += "\n";
-  out += "debug_log=";        out += debugLogEnabled     ? "true" : "false";   out += "\n";
-  out += "mqtt_en=";          out += mqttEnabled         ? "true" : "false";   out += "\n";
-  out += "mqtt_port=";        out += mqttPort;                                 out += "\n";
-  out += "mqtt_disc=";        out += mqttDiscovery       ? "true" : "false";   out += "\n";
-  out += "mqtt_broker=";      out += mqttBroker;                               out += "\n";
-  out += "mqtt_user=";        out += mqttUser;                                 out += "\n";
-  out += "mqtt_pass=";        out += mqttPass;                                 out += "\n";
-  out += "mqtt_prefix=";      out += mqttPrefix;                               out += "\n";
-  out += "mqtt_node=";        out += mqttNodeId;                               out += "\n";
-  out += "mqtt_ha_name=";     out += mqttHaName;                               out += "\n";
-  out += "boot_name=";        out += bootName;                                 out += "\n";
-  out += "mdns_name=";        out += mdnsName;                                 out += "\n";
-  out += "ind_en=";           out += indicatorsEnabled   ? "true" : "false";   out += "\n";
-  out += "recv_pocsag=";      out += recvPocsagEnabled   ? "true" : "false";   out += "\n";
-  out += "ric_time=";         out += timePocRic;                               out += "\n";
-  out += "ric_call=";         out += callsignRic;                              out += "\n";
-  {
-    out += "ric_excl=";
-    for (int i = 0; i < excludedRicsCount; i++) { if (i) out += ","; out += excludedRics[i]; }
-    out += "\n";
-  }
-  out += "icon_temp=";        out += iconTempFile;   out += "\n";
-  out += "icon_hum=";         out += iconHumFile;    out += "\n";
-  out += "icon_bat=";         out += iconBatFile;    out += "\n";
-  out += "icon_poc=";         out += iconPocsagFile; out += "\n";
-  out += "icon_hass=";        out += iconHassFile;   out += "\n";
-  out += "icon_web=";         out += iconWebFile;    out += "\n";
-  out += "scr_en=";           out += screensaverEnabled ? "true" : "false";    out += "\n";
-  out += "scr_timeout=";      out += screensaverTimeoutSec;                    out += "\n";
-  out += "scr_bright=";       out += screensaverBrightness;                    out += "\n";
-  out += "scr_file=";         out += screensaverFile;                          out += "\n";
-  out += "clk_col=";          out += colorToHex(colorClock);                   out += "\n";
-  out += "poc_col=";          out += colorToHex(colorPocsag);                  out += "\n";
-  out += "tmp_thr_lo=";       out += tempThreshLo;                             out += "\n";
-  out += "tmp_thr_hi=";       out += tempThreshHi;                             out += "\n";
-  out += "tmp_col_lo=";       out += colorToHex(colorTempLo);                  out += "\n";
-  out += "tmp_col_mid=";      out += colorToHex(colorTempMid);                 out += "\n";
-  out += "tmp_col_hi=";       out += colorToHex(colorTempHi);                  out += "\n";
-  out += "hum_thr_lo=";       out += humThreshLo;                              out += "\n";
-  out += "hum_thr_hi=";       out += humThreshHi;                              out += "\n";
-  out += "hum_col_lo=";       out += colorToHex(colorHumLo);                   out += "\n";
-  out += "hum_col_mid=";      out += colorToHex(colorHumMid);                  out += "\n";
-  out += "hum_col_hi=";       out += colorToHex(colorHumHi);                   out += "\n";
-  out += "bat_thr_lo=";       out += batThreshLo;                              out += "\n";
-  out += "bat_thr_hi=";       out += batThreshHi;                              out += "\n";
-  out += "bat_col_lo=";       out += colorToHex(colorBatLo);                   out += "\n";
-  out += "bat_col_mid=";      out += colorToHex(colorBatMid);                  out += "\n";
-  out += "bat_col_hi=";       out += colorToHex(colorBatHi);                   out += "\n";
-
-  out += "\n[wifi]\n";
-  out += "ap_ssid=";   out += wifiApSsid;     out += "\n";
-  out += "ap_pass=";   out += wifiApPassword; out += "\n";
-  out += "ap_ch=";     out += wifiApChannel;  out += "\n";
-  out += "retries=";   out += wifiMaxRetries; out += "\n";
-  for (int i = 0; i < WIFI_SLOT_COUNT; i++) {
-    char lk[4], sk[4], pk[4];
-    snprintf(lk, sizeof(lk), "l%d", i);
-    snprintf(sk, sizeof(sk), "s%d", i);
-    snprintf(pk, sizeof(pk), "p%d", i);
-    out += lk; out += "="; out += wifiSlotLabel[i]; out += "\n";
-    out += sk; out += "="; out += wifiSlotSsid[i];  out += "\n";
-    out += pk; out += "="; out += wifiSlotPass[i];  out += "\n";
-  }
+  dumpNvsNamespace("ulanzi", out);
+  out += "\n";
+  dumpNvsNamespace("wifi", out);
 
   return out;
 }
 
-// ── Import ────────────────────────────────────────────────────────────────────
+// ── Apply import text ─────────────────────────────────────────────────────────
+// Writes keys directly to NVS via Preferences — no need to touch globals since
+// we restart immediately after. Unknown type tags are silently skipped.
 
 static void applyImportText(const String& text) {
-  // Rebuild wifi slot arrays; apply at the end
-  String slotLabel[WIFI_SLOT_COUNT], slotSsid[WIFI_SLOT_COUNT], slotPass[WIFI_SLOT_COUNT];
-  for (int i = 0; i < WIFI_SLOT_COUNT; i++) {
-    slotLabel[i] = wifiSlotLabel[i];
-    slotSsid[i]  = wifiSlotSsid[i];
-    slotPass[i]  = wifiSlotPass[i];
-  }
+  char currentNs[16] = "";
+  Preferences p;
+  bool pOpen = false;
 
   int pos = 0, len = text.length();
   while (pos < len) {
@@ -132,101 +150,58 @@ static void applyImportText(const String& text) {
     line.trim();
     pos = nl + 1;
 
-    if (line.startsWith("#") || line.startsWith("[") || line.length() == 0) continue;
+    if (line.length() == 0 || line.startsWith("#")) continue;
+
+    // Section header [namespace]
+    if (line.startsWith("[") && line.endsWith("]")) {
+      if (pOpen) { p.end(); pOpen = false; }
+      String ns = line.substring(1, line.length() - 1);
+      ns.trim();
+      if (ns.length() > 0 && ns.length() < (int)sizeof(currentNs)) {
+        strncpy(currentNs, ns.c_str(), sizeof(currentNs) - 1);
+        currentNs[sizeof(currentNs) - 1] = '\0';
+        p.begin(currentNs, false);
+        pOpen = true;
+      }
+      continue;
+    }
+
+    if (!pOpen) continue;
 
     int eq = line.indexOf('=');
     if (eq < 1) continue;
-    String key = line.substring(0, eq);   key.trim();
-    String val = line.substring(eq + 1);  // don't trim — passwords may have leading space
+    String key = line.substring(0, eq);  key.trim();
+    String rest = line.substring(eq + 1);   // "TYPE:value"
 
-    // ── ulanzi namespace ──────────────────────────────────────────────
-    if      (key == "auto_br")      autoBrightnessEnabled = (val == "true" || val == "1");
-    else if (key == "brightness")   currentBrightness     = (uint8_t)constrain(val.toInt(), 0, 255);
-    else if (key == "buz_boot_en")  buzzerBootEnabled     = (val == "true" || val == "1");
-    else if (key == "buz_boot_vol") buzzerBootVolume      = (uint8_t)constrain(val.toInt(), 0, 255);
-    else if (key == "buz_poc_en")   buzzerPocsagEnabled   = (val == "true" || val == "1");
-    else if (key == "buz_poc_vol")  buzzerPocsagVolume    = (uint8_t)constrain(val.toInt(), 0, 255);
-    else if (key == "buz_clk_en")   buzzerClickEnabled    = (val == "true" || val == "1");
-    else if (key == "buz_clk_vol")  buzzerClickVolume     = (uint8_t)constrain(val.toInt(), 0, 255);
-    else if (key == "rot_en")       autoRotateEnabled     = (val == "true" || val == "1");
-    else if (key == "rot_sec")      autoRotateIntervalSec = (uint8_t)constrain(val.toInt(), 1, 60);
-    else if (key == "ota_en")       otaEnabled            = (val == "true" || val == "1");
-    else if (key == "ota_port")     otaPort               = constrain(val.toInt(), 1, 65535);
-    else if (key == "debug_log")    debugLogEnabled       = (val == "true" || val == "1");
-    else if (key == "mqtt_en")      mqttEnabled           = (val == "true" || val == "1");
-    else if (key == "mqtt_port")    mqttPort              = (uint16_t)constrain(val.toInt(), 1, 65535);
-    else if (key == "mqtt_disc")    mqttDiscovery         = (val == "true" || val == "1");
-    else if (key == "mqtt_broker")  { val.trim(); strncpy(mqttBroker, val.c_str(), 63); mqttBroker[63] = '\0'; }
-    else if (key == "mqtt_user")    { val.trim(); strncpy(mqttUser,   val.c_str(), 31); mqttUser[31]   = '\0'; }
-    else if (key == "mqtt_pass")    { val.trim(); strncpy(mqttPass,   val.c_str(), 63); mqttPass[63]   = '\0'; }
-    else if (key == "mqtt_prefix")  { val.trim(); strncpy(mqttPrefix, val.c_str(), 31); mqttPrefix[31] = '\0'; }
-    else if (key == "mqtt_node")    { val.trim(); strncpy(mqttNodeId, val.c_str(), 31); mqttNodeId[31] = '\0'; }
-    else if (key == "mqtt_ha_name") { val.trim(); strncpy(mqttHaName, val.c_str(), 31); mqttHaName[31] = '\0'; }
-    else if (key == "boot_name")    { val.trim(); val.toUpperCase(); strncpy(bootName, val.c_str(), 8); bootName[8] = '\0'; }
-    else if (key == "mdns_name")    { val.trim(); val.toLowerCase(); strncpy(mdnsName, val.c_str(), 31); mdnsName[31] = '\0'; }
-    else if (key == "ind_en")       indicatorsEnabled = (val == "true" || val == "1");
-    else if (key == "recv_pocsag")  recvPocsagEnabled = (val == "true" || val == "1");
-    else if (key == "ric_time")     timePocRic  = (uint32_t)val.toInt();
-    else if (key == "ric_call")     callsignRic = (uint32_t)val.toInt();
-    else if (key == "ric_excl") {
-      excludedRicsCount = 0;
-      int s2 = 0;
-      for (int i = 0; i <= (int)val.length() && excludedRicsCount < EXCLUDED_RICS_MAX; i++) {
-        if (i == (int)val.length() || val[i] == ',') {
-          String tok = val.substring(s2, i); tok.trim();
-          if (tok.length()) excludedRics[excludedRicsCount++] = (uint32_t)tok.toInt();
-          s2 = i + 1;
+    // Split "TYPE:value" on first colon
+    int colon = rest.indexOf(':');
+    if (colon < 0) continue;
+    String type = rest.substring(0, colon);  type.trim();
+    String val  = rest.substring(colon + 1); // value (may contain ':')
+
+    if      (type == "u8")   p.putUChar  (key.c_str(), (uint8_t)val.toInt());
+    else if (type == "i8")   p.putChar   (key.c_str(), (int8_t)val.toInt());
+    else if (type == "u16")  p.putUShort (key.c_str(), (uint16_t)val.toInt());
+    else if (type == "i16")  p.putShort  (key.c_str(), (int16_t)val.toInt());
+    else if (type == "u32")  p.putUInt   (key.c_str(), (uint32_t)strtoul(val.c_str(), nullptr, 10));
+    else if (type == "i32")  p.putInt    (key.c_str(), (int32_t)val.toInt());
+    else if (type == "str")  p.putString (key.c_str(), val);
+    else if (type == "blob") {
+      int blen = val.length() / 2;
+      if (blen > 0) {
+        uint8_t* buf = new uint8_t[blen];
+        for (int i = 0; i < blen; i++) {
+          char h[3] = { val[i * 2], val[i * 2 + 1], '\0' };
+          buf[i] = (uint8_t)strtol(h, nullptr, 16);
         }
+        p.putBytes(key.c_str(), buf, blen);
+        delete[] buf;
       }
     }
-    else if (key == "icon_temp")    { val.trim(); strncpy(iconTempFile,   val.c_str(), 31); iconTempFile[31]   = '\0'; }
-    else if (key == "icon_hum")     { val.trim(); strncpy(iconHumFile,    val.c_str(), 31); iconHumFile[31]    = '\0'; }
-    else if (key == "icon_bat")     { val.trim(); strncpy(iconBatFile,    val.c_str(), 31); iconBatFile[31]    = '\0'; }
-    else if (key == "icon_poc")     { val.trim(); strncpy(iconPocsagFile, val.c_str(), 31); iconPocsagFile[31] = '\0'; }
-    else if (key == "icon_hass")    { val.trim(); strncpy(iconHassFile,   val.c_str(), 31); iconHassFile[31]   = '\0'; }
-    else if (key == "icon_web")     { val.trim(); strncpy(iconWebFile,    val.c_str(), 31); iconWebFile[31]    = '\0'; }
-    else if (key == "scr_en")       screensaverEnabled    = (val == "true" || val == "1");
-    else if (key == "scr_timeout")  screensaverTimeoutSec = (uint16_t)constrain(val.toInt(), 1, 3600);
-    else if (key == "scr_bright")   screensaverBrightness = (int16_t)constrain(val.toInt(), -2, 255);
-    else if (key == "scr_file")     { val.trim(); strncpy(screensaverFile, val.c_str(), 63); screensaverFile[63] = '\0'; }
-    else if (key == "clk_col")      colorClock    = hexToColor(val);
-    else if (key == "poc_col")      colorPocsag   = hexToColor(val);
-    else if (key == "tmp_thr_lo")   tempThreshLo  = val.toFloat();
-    else if (key == "tmp_thr_hi")   tempThreshHi  = val.toFloat();
-    else if (key == "tmp_col_lo")   colorTempLo   = hexToColor(val);
-    else if (key == "tmp_col_mid")  colorTempMid  = hexToColor(val);
-    else if (key == "tmp_col_hi")   colorTempHi   = hexToColor(val);
-    else if (key == "hum_thr_lo")   humThreshLo   = val.toFloat();
-    else if (key == "hum_thr_hi")   humThreshHi   = val.toFloat();
-    else if (key == "hum_col_lo")   colorHumLo    = hexToColor(val);
-    else if (key == "hum_col_mid")  colorHumMid   = hexToColor(val);
-    else if (key == "hum_col_hi")   colorHumHi    = hexToColor(val);
-    else if (key == "bat_thr_lo")   batThreshLo   = (uint8_t)constrain(val.toInt(), 0, 100);
-    else if (key == "bat_thr_hi")   batThreshHi   = (uint8_t)constrain(val.toInt(), 0, 100);
-    else if (key == "bat_col_lo")   colorBatLo    = hexToColor(val);
-    else if (key == "bat_col_mid")  colorBatMid   = hexToColor(val);
-    else if (key == "bat_col_hi")   colorBatHi    = hexToColor(val);
-    // ── wifi namespace ─────────────────────────────────────────────────
-    else if (key == "ap_ssid")  { val.trim(); wifiApSsid     = val; }
-    else if (key == "ap_pass")  { val.trim(); wifiApPassword = val; }
-    else if (key == "ap_ch")    wifiApChannel  = (uint8_t)constrain(val.toInt(), 1, 13);
-    else if (key == "retries")  wifiMaxRetries = (uint8_t)constrain(val.toInt(), 1, 30);
-    else {
-      // WiFi slots: l0..l5, s0..s5, p0..p5
-      if (key.length() == 2 && key[1] >= '0' && key[1] < '0' + WIFI_SLOT_COUNT) {
-        int idx = key[1] - '0';
-        if      (key[0] == 'l') slotLabel[idx] = val;
-        else if (key[0] == 's') slotSsid[idx]  = val;
-        else if (key[0] == 'p') slotPass[idx]  = val;
-      }
-    }
+    // "u64", "i64", "skip" — ignored
   }
 
-  // Persist everything
-  saveSettings();
-  saveWifiApSettings();
-  for (int i = 0; i < WIFI_SLOT_COUNT; i++)
-    saveWifiSlot(i, slotLabel[i], slotSsid[i], slotPass[i]);
+  if (pOpen) p.end();
 }
 
 // ── Snapshot helpers ──────────────────────────────────────────────────────────
@@ -279,7 +254,6 @@ void registerBackupHandlers() {
       webServer.send(200, "application/json", "[]");
       return;
     }
-    // Ensure /backups/ directory exists
     if (!LittleFS.exists("/backups")) LittleFS.mkdir("/backups");
     File dir = LittleFS.open("/backups");
     String json = "[";
@@ -289,10 +263,9 @@ void registerBackupHandlers() {
       while (f) {
         if (!f.isDirectory()) {
           String nm = String(f.name());
-          // f.name() may return full path or just filename depending on LittleFS version
           int sl = nm.lastIndexOf('/');
           if (sl >= 0) nm = nm.substring(sl + 1);
-          // Strip extension so JS always passes bare name back to the backend
+          // Strip extension so JS passes bare name back; backend always appends .txt
           int dot = nm.lastIndexOf('.');
           if (dot > 0) nm = nm.substring(0, dot);
           if (!first) json += ",";
