@@ -192,11 +192,19 @@ void registerSystemHandlers() {
     const char* url = (version == "beta") ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
     LOG("[OTA-DL] Downloading: %s\n", url);
 
+    // Show UPDATE before http.GET() so FastLED.show() fires before the heavy
+    // WiFi download stream starts — avoids RMT glitches from WiFi RX interrupts.
+    otaInProgress = true;
+    otaLastBarW   = -1;
+    drawUpdate();
+
     HTTPClient http;
     http.begin(url);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     int code = http.GET();
     if (code != 200) {
+      otaInProgress = false;
+      drawError();
       webServer.send(400, "text/plain", "ERROR: HTTP " + String(code));
       http.end(); return;
     }
@@ -204,13 +212,11 @@ void registerSystemHandlers() {
     WiFiClient* stream = http.getStreamPtr();
 
     if (!Update.begin(totalSize > 0 ? totalSize : UPDATE_SIZE_UNKNOWN)) {
+      otaInProgress = false;
+      drawError();
       webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
       http.end(); return;
     }
-
-    otaInProgress = true;
-    otaLastBarW   = -1;
-    drawUpdate();
 
     uint8_t* buf = (uint8_t*)malloc(1024);
     if (!buf) {

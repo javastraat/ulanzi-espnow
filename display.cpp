@@ -456,6 +456,7 @@ void drawChar(int x, int y, char c, CRGB color) {
 // ============================================================
 
 void loopBrightness() {
+  if (otaInProgress) return;  // don't touch FastLED state while OTA owns the display
   static bool prevAuto = false;
   if (!autoBrightnessEnabled) { prevAuto = false; return; }
 

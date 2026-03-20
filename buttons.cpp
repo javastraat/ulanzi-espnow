@@ -6,27 +6,41 @@
 #include "mqtt.h"
 
 void triggerButton(int i) {
+  // When OTA confirm is pending, intercept all buttons before normal handling
+  if (otaAwaitingConfirm) {
+    if (i == 1) {
+      // Middle = confirm → reboot
+      otaAwaitingConfirm = false;
+      LOG("[BTN] Middle — OTA confirmed, rebooting\n");
+      drawReboot();
+      delay(1500);
+      ESP.restart();
+    } else {
+      // Left or Right = cancel → show error 5 s then resume
+      otaAwaitingConfirm = false;
+      LOG("[BTN] Button %d — OTA cancelled\n", i);
+      buzzerClick();
+      drawError();
+      delay(5000);
+      FastLED.clear(); FastLED.show();
+      otaInProgress = false;
+    }
+    return;
+  }
+
   resetScreensaverIdle();
   switch (i) {
     case 0:  // Left — reserved
       LOG("[BTN] Left\n");
       buzzerClick();
       break;
-    case 1:  // Middle — confirm OTA reboot if pending, else toggle auto-brightness
-      if (otaAwaitingConfirm) {
-        otaAwaitingConfirm = false;
-        LOG("[BTN] Middle — OTA confirm reboot\n");
-        drawReboot();
-        delay(1500);
-        ESP.restart();
-      } else {
-        autoBrightnessEnabled = !autoBrightnessEnabled;
-        if (!autoBrightnessEnabled)
-          FastLED.setBrightness(currentBrightness);
-        LOG("[BTN] Middle — auto brightness: %s\n",
-          autoBrightnessEnabled ? "ON" : "OFF");
-        buzzerClick();
-      }
+    case 1:  // Middle — toggle auto-brightness
+      autoBrightnessEnabled = !autoBrightnessEnabled;
+      if (!autoBrightnessEnabled)
+        FastLED.setBrightness(currentBrightness);
+      LOG("[BTN] Middle — auto brightness: %s\n",
+        autoBrightnessEnabled ? "ON" : "OFF");
+      buzzerClick();
       break;
     case 2:  // Right — cycle display mode (requires SHT31)
       if (sht31Available) {
