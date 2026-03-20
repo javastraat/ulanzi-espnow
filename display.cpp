@@ -2,6 +2,7 @@
 // and the main display loop.
 #include "display.h"
 #include "globals.h"
+#include "menu.h"
 #include "mqtt.h"
 #include <AnimatedGIF.h>
 #include <TJpg_Decoder.h>
@@ -391,6 +392,43 @@ void drawDone()   { drawStatusWord("DONE",   CRGB::Green); }
 void drawError()  { drawStatusWord("ERROR",  CRGB::Red);   }
 void drawReboot() { drawStatusWord("REBOOT", CRGB::Cyan);  }
 
+// drawBrightnessOverlay: shows current brightness mode name + a level bar.
+// Called every loop() tick while brightnessOverlayActive is true.
+void drawBrightnessOverlay() {
+  static BrightnessMode lastDrawn = (BrightnessMode)255;
+  if (brightnessMode == lastDrawn) return;  // only redraw on change
+  lastDrawn = brightnessMode;
+
+  static const char* const labels[BMODE_COUNT] = { "AUTO", "NIGHT", "DIMMED", "MEDIUM", "BRIGHT" };
+  static const CRGB        colors[BMODE_COUNT] = {
+    CRGB(  0, 200, 255),  // AUTO — cyan
+    CRGB( 80,   0, 200),  // NITE — purple
+    CRGB(  0, 100, 255),  // DIM  — blue
+    CRGB(255, 160,   0),  // MED  — amber
+    CRGB(255, 255, 255),  // BRGT — white
+  };
+  // Bar widths: 0 (AUTO handled as full), 2, 6, 16, 32
+  static const uint8_t barW[BMODE_COUNT] = { 32, 2, 6, 16, 32 };
+
+  const char* label = labels[brightnessMode];
+  CRGB        color = colors[brightnessMode];
+  int len   = strlen(label);
+  int width = len * 4 - 1;
+  int xo    = (MATRIX_WIDTH - width + 1) / 2;
+  int yo    = 1;  // vertically center the 5-row glyph in 8 rows
+
+  FastLED.clear();
+  for (int i = 0; i < len; i++)
+    drawChar(xo + i * 4, yo, label[i], color);
+
+  // Bottom row: brightness bar
+  uint8_t bw = barW[brightnessMode];
+  for (int x = 0; x < (int)bw; x++)
+    setLED(x, 7, color);
+
+  FastLED.show();
+}
+
 void drawClickOK() {
   // "CLICK" = 19px, 4px word gap, "OK" = 7px → total 30px, xo=1 centres in 32px
   const int yo = (MATRIX_HEIGHT - 5) / 2;
@@ -550,6 +588,7 @@ const char* getScreenName() {
 
 void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
+  if (isMenuActive())  return;  // menu draws its own content
 
   // Log screen transitions
   {
@@ -668,6 +707,18 @@ void loopDisplay() {
       } else {
         ipScrollX = MATRIX_WIDTH;
       }
+    }
+    return;
+  }
+
+  // Brightness-mode overlay — shown for 5 s after left-button press
+  if (brightnessOverlayActive) {
+    if (millis() >= brightnessOverlayUntil) {
+      brightnessOverlayActive = false;
+      FastLED.clear();
+      FastLED.show();
+    } else {
+      drawBrightnessOverlay();
     }
     return;
   }

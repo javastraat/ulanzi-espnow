@@ -91,8 +91,9 @@ void loadSettings() {
   Preferences p;
   p.begin("ulanzi", true);  // read-only
   // Brightness
-  autoBrightnessEnabled = p.getBool ("auto_br",    true);
-  currentBrightness     = p.getUChar("brightness", LED_BRIGHTNESS);
+  autoBrightnessEnabled = p.getBool  ("auto_br",    true);
+  currentBrightness     = p.getUChar ("brightness", LED_BRIGHTNESS);
+  brightnessMode        = (BrightnessMode)p.getUChar("br_mode", BMODE_AUTO);
   // Buzzer
   buzzerBootEnabled     = p.getBool ("buz_boot_en",  true);
   buzzerBootVolume      = p.getUChar("buz_boot_vol", BUZZER_VOL_BOOT);
@@ -176,8 +177,9 @@ void saveSettings() {
   Preferences p;
   p.begin("ulanzi", false);  // read-write
   // Brightness
-  p.putBool ("auto_br",    autoBrightnessEnabled);
-  p.putUChar("brightness", currentBrightness);
+  p.putBool  ("auto_br",    autoBrightnessEnabled);
+  p.putUChar ("brightness", currentBrightness);
+  p.putUChar ("br_mode",    (uint8_t)brightnessMode);
   // Buzzer
   p.putBool ("buz_boot_en",  buzzerBootEnabled);
   p.putUChar("buz_boot_vol", buzzerBootVolume);

@@ -28,6 +28,7 @@
 #include "buzzer.h"
 #include "buttons.h"
 #include "display.h"
+#include "menu.h"
 #include "filesystem.h"
 #include "nvs_settings.h"
 #include "receiver.h"
@@ -84,8 +85,13 @@ unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
 #endif
 
 // Brightness (LDR auto + manual)
-bool    autoBrightnessEnabled = true;
-uint8_t currentBrightness     = LED_BRIGHTNESS;
+bool          autoBrightnessEnabled = true;
+uint8_t       currentBrightness     = LED_BRIGHTNESS;
+BrightnessMode brightnessMode       = BMODE_AUTO;
+
+// Brightness-mode overlay (shown 5 s after left-button press)
+bool          brightnessOverlayActive = false;
+unsigned long brightnessOverlayUntil  = 0;
 
 // Buzzer settings & non-blocking tone engine
 // Tone queue — written from ESP-NOW callback (Core 0), processed in loop() (Core 1)
@@ -312,6 +318,7 @@ void loop() {
 #endif
 
   loopButtons();
+  loopMenu();
   loopBrightness();
   loopBuzzer();
   loopSHT31();

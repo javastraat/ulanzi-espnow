@@ -554,15 +554,15 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     LOG("[MQTT] indicators → %s\n", val);
 
   } else if (sub == "button/btn_left/command"   && strcmp(val, "PRESS") == 0) {
-    triggerButton(0);
+    triggerButton(0, false);
     LOG("[MQTT] btn_left\n");
 
   } else if (sub == "button/btn_middle/command" && strcmp(val, "PRESS") == 0) {
-    triggerButton(1);
+    triggerButton(1, false);
     LOG("[MQTT] btn_middle\n");
 
   } else if (sub == "button/btn_right/command"  && strcmp(val, "PRESS") == 0) {
-    triggerButton(2);
+    triggerButton(2, false);
     LOG("[MQTT] btn_right\n");
 
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {

@@ -86,8 +86,22 @@ extern unsigned long pocsagStaticLastDraw;
 
 // ── Brightness ────────────────────────────────────────────────────────────────
 
-extern bool    autoBrightnessEnabled;
-extern uint8_t currentBrightness;
+enum BrightnessMode : uint8_t {
+  BMODE_AUTO   = 0,  // LDR auto-adjust
+  BMODE_NIGHT  = 1,  // fixed 5   — very dim
+  BMODE_DIM    = 2,  // fixed 20  — dim
+  BMODE_MEDIUM = 3,  // fixed 80  — medium
+  BMODE_BRIGHT = 4,  // fixed 255 — full
+  BMODE_COUNT  = 5
+};
+
+extern bool          autoBrightnessEnabled;
+extern uint8_t       currentBrightness;
+extern BrightnessMode brightnessMode;
+
+// Brightness-mode overlay (shown for 5 s after left-button press)
+extern bool          brightnessOverlayActive;
+extern unsigned long brightnessOverlayUntil;
 
 // ── Buzzer settings & tone queue ──────────────────────────────────────────────
 

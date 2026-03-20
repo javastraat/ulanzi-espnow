@@ -19,3 +19,4 @@ const char* getScreenName();
 void screensaverApplyBrightness();
 void resetScreensaverIdle();
 void drawIndicators();
+void drawBrightnessOverlay();

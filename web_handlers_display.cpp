@@ -311,7 +311,7 @@ void registerDisplayHandlers() {
   });
 
   // ── Virtual buttons (same action as physical buttons) ──────────────────────
-  webServer.on("/api/btn/left",   HTTP_POST, []() { triggerButton(0); webServer.send(200, "application/json", "{\"ok\":true}"); });
-  webServer.on("/api/btn/middle", HTTP_POST, []() { triggerButton(1); webServer.send(200, "application/json", "{\"ok\":true}"); });
-  webServer.on("/api/btn/right",  HTTP_POST, []() { triggerButton(2); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/left",   HTTP_POST, []() { triggerButton(0, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/middle", HTTP_POST, []() { triggerButton(1, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/right",  HTTP_POST, []() { triggerButton(2, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
 }
