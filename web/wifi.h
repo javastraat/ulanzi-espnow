@@ -12,11 +12,9 @@ inline String getWifiPageHTML() {
   html = "<!DOCTYPE html><html lang='en'><head>"
          "<meta charset='UTF-8'>"
          "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-         "<title>WiFi Configuration</title>"
-         THEME_INIT_SCRIPT
+         "<title>Ulanzi WiFi</title>"
          "<style>" COMMON_CSS
          // Page-specific styles
-         ".admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;margin-top:15px}"
          ".status-box{padding:8px 12px;border-radius:4px;margin-bottom:10px;font-weight:bold;font-size:.9em}"
          ".status-connected{background:#d4edda;color:#155724}"
          ".status-ap{background:#fff3cd;color:#856404}"
@@ -25,6 +23,7 @@ inline String getWifiPageHTML() {
          ".scan-results{margin-top:12px}"
          ".action-col{display:flex;flex-direction:column;gap:8px;margin-top:10px}"
          "</style>"
+         THEME_INIT_SCRIPT
          "</head><body>";
 
   html += NAV_BAR;
@@ -33,7 +32,7 @@ inline String getWifiPageHTML() {
   html += "<div class='container'>";
   html += "<h1 style='margin-bottom:6px'>WiFi Configuration</h1>";
   html += "<p style='margin-bottom:16px;font-size:.9em;color:var(--text-muted)'>Configure up to 6 networks. On boot the clock tries them in order; starts an Access Point if none connect.</p>";
-  html += "<div class='admin-grid'>";
+  html += "<div class='grid'>";
 
   // ── Card 1: Current status ──────────────────────────────────────────────────
   html += "<div class='card'><h3>Current Status</h3>";
@@ -66,7 +65,7 @@ inline String getWifiPageHTML() {
   html += "<form onsubmit='return false'>";
   html += "<input type='hidden' id='currentSlot' value='0'>";
   html += "<div class='metric'><span class='metric-label'>Slot</span>";
-  html += "<select id='slotSelector' style='width:140px;padding:4px 6px;margin-left:8px'>";
+  html += "<select id='slotSelector' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'>";
   for (int i = 0; i < WIFI_SLOT_COUNT; i++) {
     String opt = "Slot " + String(i + 1) + ": ";
     opt += (wifiSlotLabel[i].length() > 0 ? wifiSlotLabel[i] : "-");
@@ -76,11 +75,11 @@ inline String getWifiPageHTML() {
   html += "</select></div>";
   html += "<div style='margin-top:12px'></div>";
   html += "<div class='metric'><span class='metric-label'>Label</span>"
-          "<input type='text' id='labelInput' maxlength='20' placeholder='e.g. Home' value='" + wifiSlotLabel[0] + "' style='width:140px;padding:4px 6px;margin-left:8px'></div>";
+          "<input type='text' id='labelInput' maxlength='20' placeholder='e.g. Home' value='" + wifiSlotLabel[0] + "' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'></div>";
   html += "<div class='metric'><span class='metric-label'>SSID</span>"
-          "<input type='text' id='ssidInput' placeholder='Network name' value='" + wifiSlotSsid[0] + "' autocomplete='username' style='width:140px;padding:4px 6px;margin-left:8px'></div>";
+          "<input type='text' id='ssidInput' placeholder='Network name' value='" + wifiSlotSsid[0] + "' autocomplete='username' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'></div>";
   html += "<div class='metric' style='position:relative'><span class='metric-label'>Password</span>"
-          "<input type='password' id='passwordInput' placeholder='Password' value='" + wifiSlotPass[0] + "' autocomplete='current-password' style='width:120px;padding:4px 24px 4px 6px;margin-left:8px'>"
+          "<input type='password' id='passwordInput' placeholder='Password' value='" + wifiSlotPass[0] + "' autocomplete='current-password' style='width:120px;padding:4px 24px 4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'>"
           "<span style='position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer' onclick='togglePw(\"passwordInput\",this)'>"
           "<svg width=16 height=16 viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>"
           "</span></div>";
@@ -101,16 +100,16 @@ inline String getWifiPageHTML() {
   html += "<p style='font-size:.85em;color:var(--text-muted);margin-bottom:10px'>Used as fallback when no saved network connects. Connect to this AP and browse to 192.168.4.1 to configure WiFi.</p>";
   html += "<form onsubmit='return false'>";
   html += "<div class='metric'><span class='metric-label'>AP SSID</span>"
-          "<input type='text' id='apSsid' value='" + wifiApSsid + "' maxlength='32' style='width:140px;padding:4px 6px;margin-left:8px' autocomplete='username'></div>";
+          "<input type='text' id='apSsid' value='" + wifiApSsid + "' maxlength='32' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px' autocomplete='username'></div>";
   html += "<div class='metric' style='position:relative'><span class='metric-label'>AP Password</span>"
-          "<input type='password' id='apPassword' value='" + wifiApPassword + "' minlength='8' maxlength='63' style='width:120px;padding:4px 24px 4px 6px;margin-left:8px' autocomplete='current-password'>"
+          "<input type='password' id='apPassword' value='" + wifiApPassword + "' minlength='8' maxlength='63' style='width:120px;padding:4px 24px 4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px' autocomplete='current-password'>"
           "<span style='position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer' onclick='togglePw(\"apPassword\",this)'>"
           "<svg width=16 height=16 viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/><circle cx='12' cy='12' r='3'/></svg>"
           "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Channel</span>"
-          "<input type='number' id='apChannel' value='" + String(wifiApChannel) + "' min='1' max='13' style='width:140px;padding:4px 6px;margin-left:8px'></div>";
+          "<input type='number' id='apChannel' value='" + String(wifiApChannel) + "' min='1' max='13' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'></div>";
   html += "<div class='metric'><span class='metric-label'>Retries/slot</span>"
-          "<input type='number' id='apRetries' value='" + String(wifiMaxRetries) + "' min='1' max='40' style='width:140px;padding:4px 6px;margin-left:8px'></div>";
+          "<input type='number' id='apRetries' value='" + String(wifiMaxRetries) + "' min='1' max='40' style='width:140px;padding:4px 6px;margin-left:8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px'></div>";
   html += "<p style='font-size:.8em;color:var(--text-muted);margin-top:6px'>Retries × 500 ms = per-slot timeout (10 → 5 s).</p>";
   html += "<div class='action-col' style='margin-top:12px'>"
           "<button class='btn btn-success' type='button' onclick='saveAP()'>Save AP &amp; Reboot</button>"
@@ -118,7 +117,7 @@ inline String getWifiPageHTML() {
           "</div>";
   html += "</form></div>"; // card
 
-  html += "</div>"; // admin-grid
+  html += "</div>"; // grid
 
   // ── Save All button ─────────────────────────────────────────────────────────
   html += "<div style='margin-top:20px'>";
