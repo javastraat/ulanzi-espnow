@@ -21,6 +21,7 @@
 #include "globals.h"
 #include "display.h"
 #include "nvs_settings.h"
+#include "web_handlers_system.h"
 
 // ── Menu item definitions ─────────────────────────────────────────────────────
 
@@ -41,8 +42,8 @@ static MenuItem items[] = {
   { "MSGS", ITEM_BOOL,   &recvPocsagEnabled  },
   { "DOTS", ITEM_BOOL,   &indicatorsEnabled  },
   { "BEEP", ITEM_BOOL,   &buzzerClickEnabled },
-  { "IP  ", ITEM_ACTION, nullptr             },
-  { "UPDT", ITEM_ACTION, nullptr             },
+  { "SHOW IP", ITEM_ACTION, nullptr          },
+  { "UPDATE", ITEM_ACTION, nullptr           },
 };
 static const int ITEM_COUNT = sizeof(items) / sizeof(items[0]);
 
@@ -86,9 +87,13 @@ static void triggerIpScroll() {
 static void triggerOtaReady() {
   menuActive     = false;
   confirmPending = false;
-  otaReadyMode   = true;
-  drawUpdate();
-  LOG("[MENU] OTA ready — waiting for upload\n");
+  String err;
+  int written = 0;
+  if (!startOtaDownloadFromGithub("stable", &err, &written)) {
+    LOG("[MENU] OTA download failed: %s\n", err.c_str());
+    return;
+  }
+  LOG("[MENU] OTA download complete: %d bytes\n", written);
 }
 
 // ── Drawing ───────────────────────────────────────────────────────────────────
@@ -179,7 +184,7 @@ void menuButtonLeft() {
     return;
   }
   if (items[currentItem].type == ITEM_ACTION) {
-    if (strcmp(items[currentItem].label, "UPDT") == 0)
+    if (strcmp(items[currentItem].label, "UPDATE") == 0)
       { confirmPending = true; needsRedraw = true; }
     else
       triggerIpScroll();
@@ -198,7 +203,7 @@ void menuButtonRight() {
     return;
   }
   if (items[currentItem].type == ITEM_ACTION) {
-    if (strcmp(items[currentItem].label, "UPDT") == 0)
+    if (strcmp(items[currentItem].label, "UPDATE") == 0)
       { confirmPending = true; needsRedraw = true; }
     else
       triggerIpScroll();

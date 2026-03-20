@@ -299,17 +299,34 @@ document.getElementById('fw-file').onchange = function(e) {
       };
       xhr.onload = function(){
         var ok = false; var errMsg = 'unknown error';
-        try { var r=JSON.parse(xhr.responseText); ok=r.ok; errMsg=r.error||errMsg; } catch(ex){ errMsg=xhr.responseText; }
+        var awaitingConfirm = false;
+        try {
+          var r=JSON.parse(xhr.responseText);
+          ok=r.ok;
+          errMsg=r.error||errMsg;
+          awaitingConfirm = !!r.awaiting_confirm;
+        } catch(ex){ errMsg=xhr.responseText; }
         if (ok) {
           document.getElementById('dl-progress-fill').style.width = '100%';
           document.getElementById('dl-progress-text').textContent = '100%';
-          statusDiv.textContent = 'Upload complete. Rebooting\u2026'; statusDiv.style.color = '#28a745';
-          document.body.innerHTML =
-            '<div style="display:flex;justify-content:center;align-items:center;height:100vh;'
-            +'font-family:sans-serif;flex-direction:column;gap:12px">'
-            +'<div style="font-size:1.5em;font-weight:bold">Rebooting\u2026</div>'
-            +'<div style="color:#888">Page reloads in 12 s.</div></div>';
-          setTimeout(function(){ location.reload(); }, 12000);
+          if (awaitingConfirm) {
+            // Menu-armed update: firmware is staged and the device shows CLICK OK.
+            statusDiv.innerHTML =
+              '<div style="margin-bottom:8px">Firmware staged. Confirm reboot on device (CLICK OK) or here:</div>' +
+              '<div style="display:flex;gap:8px">' +
+              '<button class="btn btn-success" onclick="otaConfirm()">Reboot Now</button>' +
+              '<button class="btn btn-danger"  onclick="otaCancel()">Cancel</button>' +
+              '</div>';
+            statusDiv.style.color = 'var(--text-color)';
+          } else {
+            statusDiv.textContent = 'Upload complete. Rebooting\u2026'; statusDiv.style.color = '#28a745';
+            document.body.innerHTML =
+              '<div style="display:flex;justify-content:center;align-items:center;height:100vh;'
+              +'font-family:sans-serif;flex-direction:column;gap:12px">'
+              +'<div style="font-size:1.5em;font-weight:bold">Rebooting\u2026</div>'
+              +'<div style="color:#888">Page reloads in 12 s.</div></div>';
+            setTimeout(function(){ location.reload(); }, 12000);
+          }
         } else {
           statusDiv.textContent = 'Error: ' + errMsg; statusDiv.style.color = '#dc3545';
         }

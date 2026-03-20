@@ -17,6 +17,78 @@ extern "C" {
 #include <vector>
 #include <algorithm>
 
+static bool otaUploadMenuArmed = false;
+
+bool startOtaDownloadFromGithub(const char* version, String* errorOut, int* writtenOut) {
+  const bool useBeta = (version && String(version) == "beta");
+  const char* url = useBeta ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
+  LOG("[OTA-DL] Downloading: %s\n", url);
+
+  otaInProgress = true;
+  otaLastBarW   = -1;
+  drawUpdate();
+
+  HTTPClient http;
+  http.begin(url);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  int code = http.GET();
+  if (code != 200) {
+    otaInProgress = false;
+    drawError();
+    if (errorOut) *errorOut = "HTTP " + String(code);
+    http.end();
+    return false;
+  }
+
+  int totalSize = http.getSize();
+  WiFiClient* stream = http.getStreamPtr();
+
+  if (!Update.begin(totalSize > 0 ? totalSize : UPDATE_SIZE_UNKNOWN)) {
+    otaInProgress = false;
+    drawError();
+    if (errorOut) *errorOut = String(Update.errorString());
+    http.end();
+    return false;
+  }
+
+  uint8_t* buf = (uint8_t*)malloc(1024);
+  if (!buf) {
+    otaInProgress = false;
+    drawError();
+    if (errorOut) *errorOut = "out of memory";
+    http.end();
+    return false;
+  }
+
+  int written = 0;
+  while (http.connected() && (totalSize < 0 || written < totalSize)) {
+    int avail = stream->available();
+    if (avail > 0) {
+      int n = stream->readBytes(buf, min(avail, 1024));
+      Update.write(buf, n);
+      written += n;
+    } else {
+      delay(1);
+    }
+  }
+  free(buf);
+  http.end();
+
+  if (!Update.end(true)) {
+    otaInProgress = false;
+    drawError();
+    if (errorOut) *errorOut = String(Update.errorString());
+    return false;
+  }
+
+  otaReadyMode       = false;
+  otaAwaitingConfirm = true;
+  drawClickOK();
+  LOG("[OTA-DL] Done: %d bytes — awaiting reboot confirm\n", written);
+  if (writtenOut) *writtenOut = written;
+  return true;
+}
+
 void registerSystemHandlers() {
 
   webServer.on("/api/reboot", HTTP_POST, []() {
@@ -189,64 +261,12 @@ void registerSystemHandlers() {
   // ── Online firmware download → flash (streams from URL into OTA partition) ──
   webServer.on("/api/ota-download", HTTP_POST, []() {
     String version = webServer.arg("version");
-    const char* url = (version == "beta") ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
-    LOG("[OTA-DL] Downloading: %s\n", url);
-
-    // Show UPDATE before http.GET() so FastLED.show() fires before the heavy
-    // WiFi download stream starts — avoids RMT glitches from WiFi RX interrupts.
-    otaInProgress = true;
-    otaLastBarW   = -1;
-    drawUpdate();
-
-    HTTPClient http;
-    http.begin(url);
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    int code = http.GET();
-    if (code != 200) {
-      otaInProgress = false;
-      drawError();
-      webServer.send(400, "text/plain", "ERROR: HTTP " + String(code));
-      http.end(); return;
-    }
-    int totalSize = http.getSize();
-    WiFiClient* stream = http.getStreamPtr();
-
-    if (!Update.begin(totalSize > 0 ? totalSize : UPDATE_SIZE_UNKNOWN)) {
-      otaInProgress = false;
-      drawError();
-      webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
-      http.end(); return;
-    }
-
-    uint8_t* buf = (uint8_t*)malloc(1024);
-    if (!buf) {
-      otaInProgress = false;
-      drawError();
-      webServer.send(500, "text/plain", "ERROR: out of memory");
-      http.end(); return;
-    }
+    String err;
     int written = 0;
-    while (http.connected() && (totalSize < 0 || written < totalSize)) {
-      int avail = stream->available();
-      if (avail > 0) {
-        int n = stream->readBytes(buf, min(avail, 1024));
-        Update.write(buf, n);
-        written += n;
-      } else { delay(1); }
-    }
-    free(buf);
-    http.end();
-
-    if (!Update.end(true)) {
-      otaInProgress = false;
-      drawError();
-      webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
+    if (!startOtaDownloadFromGithub(version.c_str(), &err, &written)) {
+      webServer.send(500, "text/plain", "ERROR: " + err);
       return;
     }
-    // Firmware staged — wait for user confirmation before rebooting
-    drawClickOK();
-    otaAwaitingConfirm = true;
-    LOG("[OTA-DL] Done: %d bytes — awaiting reboot confirm\n", written);
     webServer.send(200, "text/plain", "SUCCESS (" + String(written) + " bytes)");
   });
 
@@ -322,21 +342,38 @@ void registerSystemHandlers() {
   webServer.on("/api/ota-upload", HTTP_POST,
     []() {
       if (Update.hasError()) {
+        otaInProgress = false;
         String err = String(Update.errorString());
         webServer.send(500, "application/json",
           "{\"ok\":false,\"error\":\"" + err + "\"}");
       } else {
-        webServer.send(200, "application/json", "{\"ok\":true}");
-        delay(300);
-        ESP.restart();
+        if (otaUploadMenuArmed) {
+          // Menu-armed flow: stage firmware and wait for physical confirm.
+          otaReadyMode       = false;
+          otaAwaitingConfirm = true;
+          drawClickOK();
+          webServer.send(200, "application/json", "{\"ok\":true,\"awaiting_confirm\":true}");
+          LOG("[OTA-WEB] Staged — awaiting button confirm\n");
+        } else {
+          otaInProgress = false;
+          webServer.send(200, "application/json", "{\"ok\":true}");
+          delay(300);
+          ESP.restart();
+        }
       }
+      otaUploadMenuArmed = false;
     },
     []() {
       HTTPUpload& up = webServer.upload();
       if (up.status == UPLOAD_FILE_START) {
         LOG("[OTA-WEB] Start: %s\n", up.filename.c_str());
+        otaUploadMenuArmed = otaReadyMode;
+        otaInProgress = true;
+        if (otaUploadMenuArmed) drawUpdate();
         if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
           LOG("[OTA-WEB] begin() failed: %s\n", Update.errorString());
+          otaInProgress = false;
+          otaUploadMenuArmed = false;
         }
       } else if (up.status == UPLOAD_FILE_WRITE) {
         if (Update.write(up.buf, up.currentSize) != up.currentSize) {
@@ -346,7 +383,9 @@ void registerSystemHandlers() {
         if (Update.end(true)) {
           LOG("[OTA-WEB] Done: %u bytes\n", up.totalSize);
         } else {
+          otaInProgress = false;
           LOG("[OTA-WEB] end() failed: %s\n", Update.errorString());
+          otaUploadMenuArmed = false;
         }
       }
     }
