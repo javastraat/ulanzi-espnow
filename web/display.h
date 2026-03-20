@@ -97,20 +97,20 @@ static const char PAGE_DISPLAY[] PROGMEM =
     <h3>Clock Face</h3>
     <div style="display:flex;flex-direction:column;gap:6px" id="cf-list">
       <button id="cf-0" class="bp" onclick="setFace(0)" style="text-align:left;padding:7px 10px">
-        <strong>0 — Classic</strong>
-        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS centred</span>
+        <strong>0 — Calendar</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">Rolodex + HH:MM + day dots</span>
       </button>
       <button id="cf-1" class="bp" onclick="setFace(1)" style="text-align:left;padding:7px 10px">
-        <strong>1 — Big</strong>
-        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM large digits</span>
+        <strong>1 — Classic</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS centred</span>
       </button>
       <button id="cf-2" class="bp" onclick="setFace(2)" style="text-align:left;padding:7px 10px">
-        <strong>2 — Calendar</strong>
-        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">Date box + HH:MM</span>
+        <strong>2 — Weekday</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS + day dots</span>
       </button>
       <button id="cf-3" class="bp" onclick="setFace(3)" style="text-align:left;padding:7px 10px">
-        <strong>3 — Weekday</strong>
-        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS + day dots</span>
+        <strong>3 — Big</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM large digits</span>
       </button>
       <button id="cf-4" class="bp" onclick="setFace(4)" style="text-align:left;padding:7px 10px">
         <strong>4 — Binary</strong>

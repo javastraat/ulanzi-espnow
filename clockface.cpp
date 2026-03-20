@@ -78,7 +78,7 @@ static void drawFaceCalendar(const struct tm& t) {
   // ── Calendar box body (9 wide × 7 tall, leaves y=7 for weekday dots) ──────
   CRGB body(90, 90, 90);
   for (int cx = 0; cx < 9; cx++)
-    for (int cy = 0; cy < 7; cy++)
+    for (int cy = 0; cy < MATRIX_HEIGHT; cy++)
       setLED(cx, cy, body);
 
   // Blue header bar (y=0..1)
@@ -103,24 +103,28 @@ static void drawFaceCalendar(const struct tm& t) {
     drawChar(dayX + i * 4, 2, buf[i], CRGB(10, 10, 10));
 
   // ── HH:MM on the right (x=10..31, 22 px available, centred) ──────────────
+  // Colon blinks every second so the user can see the clock is running.
   const int yo = (MATRIX_HEIGHT - 5) / 2;  // = 1
   int h = t.tm_hour, m = t.tm_min;
-  int xi = 12;
+  int xi = 11;
   drawChar(xi,      yo, '0' + h / 10, colorClock); xi += 4;
   drawChar(xi,      yo, '0' + h % 10, colorClock); xi += 4;
-  setLED(xi, yo + 1, colorClock); setLED(xi, yo + 3, colorClock); xi += 2;
+  if (t.tm_sec % 2) {
+    setLED(xi, yo + 1, colorClock);
+    setLED(xi, yo + 3, colorClock);
+  }
+  xi += 2;
   drawChar(xi,      yo, '0' + m / 10, colorClock); xi += 4;
   drawChar(xi,      yo, '0' + m % 10, colorClock);
 
-  // ── Weekday dots at y=7 (Monday-first, current day = colorClock) ──────────
-  int today = (t.tm_wday + 6) % 7;
+  // ── Weekday dots at y=7 — 7×1 dot + 6×2 gap = 19 px ────────────────────────
+  // Available after calendar box (x=9..31 = 23 px): margin = (23-19)/2 = 2
+  // → start at x=11, step=3: Mo=11 Tu=14 We=17 Th=20 Fr=23 Sa=26 Su=29
+  int today = (t.tm_wday + 6) % 7;  // Monday-first
   CRGB inactive(35, 35, 35);
   for (int i = 0; i < 7; i++) {
     CRGB c = (i == today) ? colorClock : inactive;
-    int x0 = 2 + i * 4;
-    setLED(x0,     7, c);
-    setLED(x0 + 1, 7, c);
-    setLED(x0 + 2, 7, c);
+    setLED(10 + i * 3, 7, c);
   }
 }
 
@@ -176,10 +180,10 @@ static void drawFaceBinary(const struct tm& t) {
 
 void drawClockFace(const struct tm& t) {
   switch (clockFace % CLOCK_FACE_COUNT) {
-    case 1:  drawFaceBig(t);      break;
-    case 2:  drawFaceCalendar(t); break;
-    case 3:  drawFaceWeekday(t);  break;
+    case 1:  drawFaceClassic(t);  break;
+    case 2:  drawFaceWeekday(t);  break;
+    case 3:  drawFaceBig(t);      break;
     case 4:  drawFaceBinary(t);   break;
-    default: drawFaceClassic(t);  break;
+    default: drawFaceCalendar(t); break;  // 0 = default
   }
 }
