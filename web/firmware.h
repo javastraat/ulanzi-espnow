@@ -1,7 +1,7 @@
 #pragma once
 // ── Firmware page (/firmware) — mirrors system_firmware.h from the MMDVM hotspot ──
-// Dynamic page (like wifi.h) so runtime values (OTA settings, partition versions)
-// are embedded at request time. JS handles version checks and update flows.
+// Dynamic page: all data (OTA settings, partition versions, remote size check)
+// is fetched server-side at page render time — no JS version check needed.
 
 #include "styles.h"
 #include "navigation.h"
@@ -30,7 +30,8 @@ inline String getFirmwarePageHTML() {
   if (runLabel == "app0") ver0 = FIRMWARE_VERSION;
   else if (runLabel == "app1") ver1 = FIRMWARE_VERSION;
 
-  bool isBeta = (String(FIRMWARE_VERSION).indexOf("_BETA") >= 0);
+  bool   isBeta     = (String(FIRMWARE_VERSION).indexOf("_BETA") >= 0);
+  size_t sketchSize = ESP.getSketchSize();
 
   // ── Build HTML ────────────────────────────────────────────────────────────
   String html;
@@ -68,17 +69,16 @@ inline String getFirmwarePageHTML() {
   html += "<div class='metric'><span class='metric-label'>Partition Size</span><span class='metric-value'>" + String(running ? running->size : 0) + " B</span></div>";
   html += "<div class='metric'><span class='metric-label'>Version</span><span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Build Date</span><span class='metric-value'>" + String(__DATE__) + " " + String(__TIME__) + "</span></div>";
-  html += "<div class='metric'><span class='metric-label'>Firmware Size</span><span class='metric-value'>" + String(ESP.getSketchSize()) + " B</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Firmware Size</span><span class='metric-value'>" + String(sketchSize) + " B</span></div>";
 
-  if (isBeta) {
-    html += "<div class='metric'><span class='metric-label'>Latest Beta</span><span class='metric-value' id='latest-ver'>Checking\u2026</span></div>";
-  } else {
-    html += "<div class='metric'><span class='metric-label'>Latest Stable</span><span class='metric-value' id='latest-ver'>Checking\u2026</span></div>";
-  }
+  // Remote firmware info — filled in by JS after page load (async, fast page)
+  html += "<div class='metric'><span class='metric-label'>" + String(isBeta ? "Latest Beta" : "Latest Stable") + "</span>"
+          "<span class='metric-value' id='latest-ver'>Checking\u2026</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Remote Size</span>"
+          "<span class='metric-value' id='remote-size'>Checking\u2026</span></div>";
+  html += "<div id='fw-badge-wrap' style='margin:6px 0 8px'></div>";
 
-  html += "<div id='fw-badge-wrap' style='margin:4px 0 8px'></div>";
-
-  // Details section: version select + buttons
+  // Details section: JS will open it if update available
   html += "<details id='fw-details' style='margin-top:8px'>";
   html += "<summary style='cursor:pointer;color:#007bff;font-size:.9em'>Update Options</summary>";
   html += "<div style='margin-top:10px'>";
@@ -187,37 +187,36 @@ inline String getFirmwarePageHTML() {
   html += "</div>"; // container
 
   // ── JavaScript ────────────────────────────────────────────────────────────
+  // Embed local sketch size for JS comparison
+  html += "<script>var _sketchSize=" + String(sketchSize) + ";</script>";
   html += "<script>" COMMON_JS NAV_LIVE_JS;
   html += R"JS(
 
-// ── Version check ─────────────────────────────────────────────────────────
-var _isBeta = )JS";
-  html += isBeta ? "true" : "false";
-  html += R"JS(;
-var _versionUrl     = ")JS" + String(OTA_VERSION_URL) + R"JS(";
-var _versionBetaUrl = ")JS" + String(OTA_VERSION_BETA_URL) + R"JS(";
-var _curVersion     = ")JS" + String(FIRMWARE_VERSION) + R"JS(";
-
-(function checkLatest(){
-  var url = _isBeta ? _versionBetaUrl : _versionUrl;
-  fetch(url)
-    .then(function(r){ return r.text(); })
-    .then(function(data){
-      var latest = data.trim();
-      document.getElementById('latest-ver').textContent = latest;
+// ── Remote firmware info (async, size-based check like MMDVM) ─────────────
+(function checkRemote(){
+  fetch('/api/remote-fw-info')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      document.getElementById('latest-ver').textContent  = d.latest_version || 'N/A';
+      document.getElementById('remote-size').textContent = d.remote_size > 0 ? d.remote_size + ' B' : 'N/A';
       var badge = document.getElementById('fw-badge-wrap');
-      if (latest === _curVersion) {
-        badge.innerHTML = '<span class="fw-badge fw-badge-success">ESP32 firmware up to date</span>';
-        document.getElementById('fw-details').removeAttribute('open');
+      if (d.remote_size > 0) {
+        if (d.remote_size === _sketchSize) {
+          badge.innerHTML = '<span class="fw-badge fw-badge-success">Firmware up to date</span>';
+        } else {
+          badge.innerHTML = '<span class="fw-badge fw-badge-danger">Update available</span>';
+          document.getElementById('fw-details').setAttribute('open','');
+        }
       } else {
-        badge.innerHTML = '<span class="fw-badge fw-badge-danger">Update available</span>';
+        badge.innerHTML = '<span class="fw-badge fw-badge-warning">Remote URL not available</span>';
         document.getElementById('fw-details').setAttribute('open','');
       }
     })
     .catch(function(){
-      document.getElementById('latest-ver').textContent = 'N/A';
+      document.getElementById('latest-ver').textContent  = 'N/A';
+      document.getElementById('remote-size').textContent = 'N/A';
       document.getElementById('fw-badge-wrap').innerHTML =
-        '<span class="fw-badge fw-badge-warning">Version URL not available</span>';
+        '<span class="fw-badge fw-badge-warning">Remote URL not available</span>';
       document.getElementById('fw-details').setAttribute('open','');
     });
 })();

@@ -250,6 +250,34 @@ void registerSystemHandlers() {
     webServer.send(200, "text/plain", "SUCCESS (" + String(written) + " bytes)");
   });
 
+  // ── Remote firmware info (HEAD for size, GET for version) ────────────────
+  // Called async by the firmware page after load — avoids blocking page render.
+  webServer.on("/api/remote-fw-info", HTTP_GET, []() {
+    bool isBeta = (String(FIRMWARE_VERSION).indexOf("_BETA") >= 0);
+    const char* otaUrl     = isBeta ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
+    const char* versionUrl = isBeta ? OTA_VERSION_BETA_URL  : OTA_VERSION_URL;
+
+    int    remoteSize    = 0;
+    String latestVersion = "N/A";
+
+    if (WiFi.isConnected()) {
+      HTTPClient http;
+      http.begin(otaUrl);
+      http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+      if (http.sendRequest("HEAD") > 0) remoteSize = http.getSize();
+      http.end();
+
+      http.begin(versionUrl);
+      http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+      if (http.GET() == 200) { latestVersion = http.getString(); latestVersion.trim(); }
+      http.end();
+    }
+
+    String json = "{\"remote_size\":" + String(remoteSize) +
+                  ",\"latest_version\":\"" + latestVersion + "\"}";
+    webServer.send(200, "application/json", json);
+  });
+
   // ── OTA confirm / cancel ─────────────────────────────────────────────────
   webServer.on("/api/ota-confirm", HTTP_POST, []() {
     otaAwaitingConfirm = false;
