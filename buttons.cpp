@@ -68,6 +68,16 @@ void triggerButton(int i, bool longPress) {
     return;
   }
 
+  // While waiting for OTA upload — any button cancels back to clock
+  if (otaReadyMode) {
+    otaReadyMode = false;
+    FastLED.clear();
+    FastLED.show();
+    LOG("[OTA] Ready mode cancelled by button\n");
+    buzzerClick();
+    return;
+  }
+
   // While menu is active, route to menu handlers
   if (isMenuActive()) {
     resetScreensaverIdle();

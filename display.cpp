@@ -589,6 +589,7 @@ const char* getScreenName() {
 void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
   if (isMenuActive())  return;  // menu draws its own content
+  if (otaReadyMode) { drawUpdate(); return; }  // waiting for upload
 
   // Log screen transitions
   {

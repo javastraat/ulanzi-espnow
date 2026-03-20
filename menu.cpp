@@ -32,24 +32,26 @@ struct MenuItem {
   bool*       value;     // ITEM_BOOL only — nullptr for ITEM_ACTION
 };
 
-// Forward declaration for the IP action
 static void triggerIpScroll();
+static void triggerOtaReady();
 
 static MenuItem items[] = {
   { "ROTA", ITEM_BOOL,   &autoRotateEnabled  },
   { "SCRN", ITEM_BOOL,   &screensaverEnabled },
-  { "POCG", ITEM_BOOL,   &recvPocsagEnabled  },
+  { "MSGS", ITEM_BOOL,   &recvPocsagEnabled  },
   { "DOTS", ITEM_BOOL,   &indicatorsEnabled  },
   { "BEEP", ITEM_BOOL,   &buzzerClickEnabled },
   { "IP  ", ITEM_ACTION, nullptr             },
+  { "UPDT", ITEM_ACTION, nullptr             },
 };
 static const int ITEM_COUNT = sizeof(items) / sizeof(items[0]);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-static bool menuActive  = false;
-static int  currentItem = 0;
-static bool needsRedraw = false;
+static bool menuActive     = false;
+static int  currentItem    = 0;
+static bool needsRedraw    = false;
+static bool confirmPending = false;  // true when UPDT confirm step is active
 
 // ── IP scroll trigger ─────────────────────────────────────────────────────────
 
@@ -79,7 +81,30 @@ static void triggerIpScroll() {
   LOG("[MENU] IP scroll: %s\n", ipScrollMsg);
 }
 
+// ── OTA ready trigger ─────────────────────────────────────────────────────────
+
+static void triggerOtaReady() {
+  menuActive     = false;
+  confirmPending = false;
+  otaReadyMode   = true;
+  drawUpdate();
+  LOG("[MENU] OTA ready — waiting for upload\n");
+}
+
 // ── Drawing ───────────────────────────────────────────────────────────────────
+
+static void drawConfirm() {
+  // "SURE?" — 5 chars, amber warning color, centered
+  const char* word  = "SURE?";
+  int         len   = 5;
+  int         xo    = (MATRIX_WIDTH - (len * 4 - 1)) / 2;
+  int         yo    = (MATRIX_HEIGHT - 5) / 2;
+  CRGB        color = CRGB(255, 140, 0);
+  FastLED.clear();
+  for (int i = 0; i < len; i++)
+    drawChar(xo + i * 4, yo, word[i], color);
+  FastLED.show();
+}
 
 static void drawMenu() {
   FastLED.clear();
@@ -129,22 +154,35 @@ static void drawMenu() {
 bool isMenuActive() { return menuActive; }
 
 void enterMenu() {
-  menuActive  = true;
-  currentItem = 0;
-  needsRedraw = true;
+  menuActive     = true;
+  currentItem    = 0;
+  confirmPending = false;
+  needsRedraw    = true;
 }
 
 void loopMenu() {
   if (!menuActive) return;
   if (needsRedraw) {
-    drawMenu();
+    if (confirmPending)
+      drawConfirm();
+    else
+      drawMenu();
     needsRedraw = false;
   }
 }
 
 void menuButtonLeft() {
+  if (confirmPending) {
+    confirmPending = false;
+    needsRedraw    = true;
+    LOG("[MENU] UPDT cancelled\n");
+    return;
+  }
   if (items[currentItem].type == ITEM_ACTION) {
-    triggerIpScroll();  // left also triggers action
+    if (strcmp(items[currentItem].label, "UPDT") == 0)
+      { confirmPending = true; needsRedraw = true; }
+    else
+      triggerIpScroll();
   } else {
     *items[currentItem].value = false;
     saveSettings();
@@ -153,8 +191,17 @@ void menuButtonLeft() {
 }
 
 void menuButtonRight() {
+  if (confirmPending) {
+    confirmPending = false;
+    needsRedraw    = true;
+    LOG("[MENU] UPDT cancelled\n");
+    return;
+  }
   if (items[currentItem].type == ITEM_ACTION) {
-    triggerIpScroll();  // right also triggers action
+    if (strcmp(items[currentItem].label, "UPDT") == 0)
+      { confirmPending = true; needsRedraw = true; }
+    else
+      triggerIpScroll();
   } else {
     *items[currentItem].value = true;
     saveSettings();
@@ -163,8 +210,22 @@ void menuButtonRight() {
 }
 
 void menuButtonMiddle(bool longPress) {
+  if (confirmPending) {
+    if (longPress) {
+      // Long press also cancels confirm
+      confirmPending = false;
+      needsRedraw    = true;
+      LOG("[MENU] UPDT cancelled\n");
+    } else {
+      // Short press confirms → start OTA ready mode
+      triggerOtaReady();
+    }
+    return;
+  }
+
   if (longPress) {
-    menuActive = false;
+    menuActive     = false;
+    confirmPending = false;
     FastLED.clear();
     FastLED.show();
     LOG("[MENU] Exit\n");

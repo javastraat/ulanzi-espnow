@@ -132,6 +132,7 @@ bool          timeSynced     = false;  // true once clock is running (RTC or POC
 bool          pocsagSynced   = false;  // true only after POCSAG RIC 224 has confirmed time
 volatile bool otaInProgress      = false;
 volatile bool otaAwaitingConfirm = false;
+bool          otaReadyMode       = false;
 bool          fsAvailable    = false;
 bool          otaStarted      = false;
 bool          mdnsStarted     = false;

@@ -147,6 +147,7 @@ extern bool          timeSynced;
 extern bool          pocsagSynced;
 extern volatile bool otaInProgress;
 extern volatile bool otaAwaitingConfirm;
+extern bool          otaReadyMode;       // set by menu UPDT — device waiting for upload
 extern bool          fsAvailable;
 extern bool          otaStarted;
 extern bool          mdnsStarted;
