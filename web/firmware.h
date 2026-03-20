@@ -255,28 +255,14 @@ function startOnlineUpdate() {
         if (data.indexOf('SUCCESS') === 0) {
           document.getElementById('dl-progress-fill').style.width = '100%';
           document.getElementById('dl-progress-text').textContent = '100% — download complete';
-          setTimeout(function(){
-            showConfirm(
-              'Firmware downloaded successfully!\n\nSize: ' + data.replace('SUCCESS ','') +
-              '\n\nFlash the new firmware now?',
-              function(){
-                // Flash = just reboot (firmware already written to OTA partition)
-                statusDiv.textContent = 'Rebooting to apply firmware\u2026';
-                statusDiv.style.color = '#28a745';
-                fetch('/api/reboot', {method:'POST'});
-                document.body.innerHTML =
-                  '<div style="display:flex;justify-content:center;align-items:center;height:100vh;'
-                  +'font-family:sans-serif;flex-direction:column;gap:12px">'
-                  +'<div style="font-size:1.5em;font-weight:bold">Rebooting\u2026</div>'
-                  +'<div style="color:#888">Page reloads in 12 s.</div></div>';
-                setTimeout(function(){ location.reload(); }, 12000);
-              },
-              function(){
-                statusDiv.textContent = 'Download staged. Device will use new firmware on next reboot.';
-                statusDiv.style.color = '#28a745';
-              }
-            );
-          }, 500);
+          // Show inline OK / Cancel — device screen shows CLICK OK
+          statusDiv.innerHTML =
+            '<div style="margin-bottom:8px">Firmware staged (' + data.replace('SUCCESS ','') + '). Reboot now?</div>' +
+            '<div style="display:flex;gap:8px">' +
+            '<button class="btn btn-success" onclick="otaConfirm()">Reboot Now</button>' +
+            '<button class="btn btn-danger"  onclick="otaCancel()">Cancel</button>' +
+            '</div>';
+          statusDiv.style.color = 'var(--text-color)';
         } else {
           statusDiv.textContent = data;
           statusDiv.style.color = '#dc3545';
@@ -335,6 +321,29 @@ document.getElementById('fw-file').onchange = function(e) {
     }
   );
 };
+
+// ── OTA confirm / cancel ──────────────────────────────────────────────────
+function otaConfirm() {
+  fetch('/api/ota-confirm', {method:'POST'}).catch(function(){});
+  document.body.innerHTML =
+    '<div style="display:flex;justify-content:center;align-items:center;height:100vh;'
+    +'font-family:sans-serif;flex-direction:column;gap:12px">'
+    +'<div style="font-size:1.5em;font-weight:bold">Rebooting\u2026</div>'
+    +'<div style="color:#888">Page reloads in 12 s.</div></div>';
+  setTimeout(function(){ location.reload(); }, 12000);
+}
+
+function otaCancel() {
+  var statusDiv = document.getElementById('update-status');
+  statusDiv.textContent = 'Cancelling\u2026';
+  statusDiv.style.color = 'var(--text-muted)';
+  fetch('/api/ota-cancel', {method:'POST'})
+    .then(function(){
+      statusDiv.textContent = 'Update cancelled. Device returned to normal.';
+      statusDiv.style.color = '#dc3545';
+      document.getElementById('dl-progress-fill').style.background = '#dc3545';
+    });
+}
 
 // ── Partition switch ──────────────────────────────────────────────────────
 function switchPartition(p) {

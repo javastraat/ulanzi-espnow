@@ -387,8 +387,21 @@ void drawProgress(int barW) {
   FastLED.show();
 }
 
-void drawDone()   { drawStatusWord("DONE",  CRGB::Green); }
-void drawError()  { drawStatusWord("ERROR", CRGB::Red);   }
+void drawDone()   { drawStatusWord("DONE",   CRGB::Green); }
+void drawError()  { drawStatusWord("ERROR",  CRGB::Red);   }
+void drawReboot() { drawStatusWord("REBOOT", CRGB::Cyan);  }
+
+void drawClickOK() {
+  // "CLICK" = 19px, 4px word gap, "OK" = 7px → total 30px, xo=1 centres in 32px
+  const int yo = (MATRIX_HEIGHT - 5) / 2;
+  const int xo = 1;
+  FastLED.clear();
+  const char* w1 = "CLICK";
+  for (int i = 0; i < 5; i++) drawChar(xo + i * 4,      yo, w1[i], CRGB::White);
+  const char* w2 = "OK";
+  for (int i = 0; i < 2; i++) drawChar(xo + 23 + i * 4, yo, w2[i], CRGB::White);
+  FastLED.show();
+}
 
 // Boot screen — device name in rainbow colours, letters appear one by one.
 void drawBootScreen() {

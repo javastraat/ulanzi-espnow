@@ -220,8 +220,6 @@ void registerSystemHandlers() {
       http.end(); return;
     }
     int written = 0;
-    unsigned long lastBlink = 0;
-    bool blinkOn = false;
     while (http.connected() && (totalSize < 0 || written < totalSize)) {
       int avail = stream->available();
       if (avail > 0) {
@@ -229,13 +227,6 @@ void registerSystemHandlers() {
         Update.write(buf, n);
         written += n;
       } else { delay(1); }
-      // Blink top-left dot at 500 ms — only 2 show() calls/sec, safe during WiFi stream
-      if (millis() - lastBlink >= 500) {
-        lastBlink = millis();
-        blinkOn = !blinkOn;
-        setLED(0, 0, blinkOn ? CRGB::Cyan : CRGB::Black);
-        FastLED.show();
-      }
     }
     free(buf);
     http.end();
@@ -246,10 +237,29 @@ void registerSystemHandlers() {
       webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
       return;
     }
-    drawDone();
-    otaInProgress = false;
-    LOG("[OTA-DL] Done: %d bytes\n", written);
+    // Firmware staged — wait for user confirmation before rebooting
+    drawClickOK();
+    otaAwaitingConfirm = true;
+    LOG("[OTA-DL] Done: %d bytes — awaiting reboot confirm\n", written);
     webServer.send(200, "text/plain", "SUCCESS (" + String(written) + " bytes)");
+  });
+
+  // ── OTA confirm / cancel ─────────────────────────────────────────────────
+  webServer.on("/api/ota-confirm", HTTP_POST, []() {
+    otaAwaitingConfirm = false;
+    drawReboot();
+    webServer.send(200, "text/plain", "rebooting");
+    delay(1500);
+    ESP.restart();
+  });
+
+  webServer.on("/api/ota-cancel", HTTP_POST, []() {
+    otaAwaitingConfirm = false;
+    drawError();
+    webServer.send(200, "text/plain", "cancelled");
+    delay(5000);
+    FastLED.clear(); FastLED.show();
+    otaInProgress = false;
   });
 
   // ── Save ArduinoOTA settings ──────────────────────────────────────────────

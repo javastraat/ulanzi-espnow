@@ -12,13 +12,21 @@ void triggerButton(int i) {
       LOG("[BTN] Left\n");
       buzzerClick();
       break;
-    case 1:  // Middle — toggle auto-brightness
-      autoBrightnessEnabled = !autoBrightnessEnabled;
-      if (!autoBrightnessEnabled)
-        FastLED.setBrightness(currentBrightness);
-      LOG("[BTN] Middle — auto brightness: %s\n",
-        autoBrightnessEnabled ? "ON" : "OFF");
-      buzzerClick();
+    case 1:  // Middle — confirm OTA reboot if pending, else toggle auto-brightness
+      if (otaAwaitingConfirm) {
+        otaAwaitingConfirm = false;
+        LOG("[BTN] Middle — OTA confirm reboot\n");
+        drawReboot();
+        delay(1500);
+        ESP.restart();
+      } else {
+        autoBrightnessEnabled = !autoBrightnessEnabled;
+        if (!autoBrightnessEnabled)
+          FastLED.setBrightness(currentBrightness);
+        LOG("[BTN] Middle — auto brightness: %s\n",
+          autoBrightnessEnabled ? "ON" : "OFF");
+        buzzerClick();
+      }
       break;
     case 2:  // Right — cycle display mode (requires SHT31)
       if (sht31Available) {

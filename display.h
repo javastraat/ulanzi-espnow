@@ -10,6 +10,8 @@ void drawUpdate();
 void drawProgress(int barW);
 void drawDone();
 void drawError();
+void drawReboot();
+void drawClickOK();
 void drawChar(int x, int y, char c, CRGB color);
 void setLED(int x, int y, CRGB color);
 void _gifCloseIfOpen();

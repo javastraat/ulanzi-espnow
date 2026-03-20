@@ -132,6 +132,7 @@ extern QueueHandle_t pocsagRxQueue;
 extern bool          timeSynced;
 extern bool          pocsagSynced;
 extern volatile bool otaInProgress;
+extern volatile bool otaAwaitingConfirm;
 extern bool          fsAvailable;
 extern bool          otaStarted;
 extern bool          mdnsStarted;
