@@ -368,7 +368,7 @@ static void drawStatusWord(const char* word, CRGB color) {
   FastLED.show();
 }
 
-// drawUpdate: called once on OTA start — sets text + full dim track on row 7
+// drawUpdate: called once on OTA start — shows "UPDATE" text only
 void drawUpdate() {
   const char* word = "UPDATE";
   int len   = 6;
@@ -377,8 +377,6 @@ void drawUpdate() {
   FastLED.clear();
   for (int i = 0; i < len; i++)
     drawChar(xo + i * 4, yo, word[i], LED_COLOR_TIME);
-  for (int x = 0; x < MATRIX_WIDTH; x++)
-    setLED(x, 7, CRGB(0, 25, 25));  // dim progress track, row 7
   FastLED.show();
 }
 

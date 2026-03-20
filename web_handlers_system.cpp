@@ -220,17 +220,22 @@ void registerSystemHandlers() {
       http.end(); return;
     }
     int written = 0;
+    unsigned long lastBlink = 0;
+    bool blinkOn = false;
     while (http.connected() && (totalSize < 0 || written < totalSize)) {
       int avail = stream->available();
       if (avail > 0) {
         int n = stream->readBytes(buf, min(avail, 1024));
         Update.write(buf, n);
         written += n;
-        if (totalSize > 0) {
-          int barW = (int)((long)MATRIX_WIDTH * written / totalSize);
-          if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
-        }
       } else { delay(1); }
+      // Blink top-left dot at 500 ms — only 2 show() calls/sec, safe during WiFi stream
+      if (millis() - lastBlink >= 500) {
+        lastBlink = millis();
+        blinkOn = !blinkOn;
+        setLED(0, 0, blinkOn ? CRGB::Cyan : CRGB::Black);
+        FastLED.show();
+      }
     }
     free(buf);
     http.end();
