@@ -99,7 +99,7 @@ static void applyPocsagTime(const char* msg) {
   memcpy(tmp, d +  4, 2); t.tm_mday = atoi(tmp);
   memcpy(tmp, d +  6, 2); t.tm_hour = atoi(tmp);
   memcpy(tmp, d +  8, 2); t.tm_min  = atoi(tmp);
-  memcpy(tmp, d + 10, 2); t.tm_sec  = atoi(tmp);
+  memcpy(tmp, d + 10, 2); t.tm_sec  = atoi(tmp) + 1;  // +1 sec to compensate for processing delay
 
   time_t epoch = mktime(&t);
   struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
