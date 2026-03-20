@@ -27,6 +27,7 @@
       "<a href=\"/info\" class=\"nav-more-item\">Info</a>" \
       "<a href=\"/serial\" class=\"nav-more-item\">Serial</a>" \
       "<a href=\"/firmware\" class=\"nav-more-item\">Firmware</a>" \
+      "<a href=\"/backup\" class=\"nav-more-item\">Backup</a>" \
     "</div>" \
   "</div>" \
   "<button class=\"nav-live\" onclick=\"showLive()\">&#9654; LIVE</button>" \

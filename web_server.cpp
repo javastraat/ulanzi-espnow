@@ -17,6 +17,7 @@
 #include "web_handlers_system.h"
 #include "web_handlers_espnow.h"
 #include "web_handlers_wifi.h"
+#include "web_handlers_backup.h"
 #include "web/wifi.h"
 #include "web/firmware.h"
 
@@ -103,6 +104,7 @@ static void setupWebServer() {
   registerSystemHandlers();
   registerEspNowHandlers();
   registerWifiHandlers();
+  registerBackupHandlers();
 
   webServer.begin();
   String ip = WiFi.isConnected() ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
