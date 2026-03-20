@@ -14,6 +14,63 @@
 
 #if RECV_POCSAG
 
+static void applyDisplayMessageState(const char* msg, const char* iconFile, bool doBeep) {
+  if (screensaverActive) resetScreensaverIdle();  // restores brightness + clears GIF state
+
+  strncpy(pocsagMsg, msg, POCSAG_MSG_MAX_LEN);
+  pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
+  pocsagMsgLen    = strlen(pocsagMsg);
+  pocsagMsgActive = (pocsagMsgLen > 0);
+  if (pocsagMsgActive && doBeep) buzzerBeep();
+
+  if (iconFile && iconFile[0]) {
+    strncpy(pocsagMsgCustomIconFile, iconFile, sizeof(pocsagMsgCustomIconFile) - 1);
+    pocsagMsgCustomIconFile[sizeof(pocsagMsgCustomIconFile) - 1] = '\0';
+    pocsagMsgUseCustomIcon = true;
+  } else {
+    pocsagMsgUseCustomIcon = false;
+    pocsagMsgCustomIconFile[0] = '\0';
+  }
+
+  // Keep same sizing behavior as native POCSAG display path.
+  pocsagIsScrolling = (POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4 - 1 > MATRIX_WIDTH);
+  if (pocsagIsScrolling) {
+    pocsagScrollX    = MATRIX_WIDTH;
+    pocsagScrollPass = 0;
+    pocsagScrollLast = millis();
+  } else {
+    pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
+    pocsagStaticLastDraw = 0;
+  }
+}
+
+bool injectDisplayMessage(const char* text, const char* iconFile, bool beep) {
+  if (!text) return false;
+
+  char trimmed[POCSAG_MSG_MAX_LEN + 1] = {};
+  strncpy(trimmed, text, POCSAG_MSG_MAX_LEN);
+  trimmed[POCSAG_MSG_MAX_LEN] = '\0';
+  int len = strlen(trimmed);
+  while (len > 0 && (trimmed[len - 1] == ' ' || trimmed[len - 1] == '\t' || trimmed[len - 1] == '\r' || trimmed[len - 1] == '\n'))
+    trimmed[--len] = '\0';
+  int start = 0;
+  while (trimmed[start] == ' ' || trimmed[start] == '\t' || trimmed[start] == '\r' || trimmed[start] == '\n') start++;
+  if (trimmed[start] == '\0') return false;
+
+  applyDisplayMessageState(trimmed + start, iconFile, beep);
+
+  wsCountPocsag++;
+  wsPocsagLog[wsPocsagHead].ric = 0;
+  strncpy(wsPocsagLog[wsPocsagHead].msg, pocsagMsg, POCSAG_MSG_MAX_LEN);
+  wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
+  wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
+  if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
+
+  mqttNotifyPocsag();
+  LOG("[MSG] Injected message: '%s'\n", pocsagMsg);
+  return true;
+}
+
 static const char* functionalNameRx(uint8_t f) {
   switch (f) {
     case 0: return "NUMERIC";
@@ -72,26 +129,15 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
     if (pkt.ric == excludedRics[i]) { excluded = true; break; }
 
   if (!excluded) {
-    if (screensaverActive) resetScreensaverIdle();  // restores brightness + clears GIF state
-    strncpy(pocsagMsg, pkt.message, POCSAG_MSG_MAX_LEN);
-    pocsagMsg[POCSAG_MSG_MAX_LEN] = '\0';
+    char msgBuf[POCSAG_MSG_MAX_LEN + 1] = {};
+    strncpy(msgBuf, pkt.message, POCSAG_MSG_MAX_LEN);
+    msgBuf[POCSAG_MSG_MAX_LEN] = '\0';
     if (pkt.ric == callsignRic) {
-      int len = strlen(pocsagMsg);
-      while (len > 0 && pocsagMsg[len - 1] >= '0' && pocsagMsg[len - 1] <= '9')
-        pocsagMsg[--len] = '\0';
+      int len = strlen(msgBuf);
+      while (len > 0 && msgBuf[len - 1] >= '0' && msgBuf[len - 1] <= '9')
+        msgBuf[--len] = '\0';
     }
-    pocsagMsgLen    = strlen(pocsagMsg);
-    pocsagMsgActive = (pocsagMsgLen > 0);
-    if (pocsagMsgActive) buzzerBeep();
-    pocsagIsScrolling = (POCSAG_ICON_RESERVED_PX + pocsagMsgLen * 4 - 1 > MATRIX_WIDTH);
-    if (pocsagIsScrolling) {
-      pocsagScrollX    = MATRIX_WIDTH;
-      pocsagScrollPass = 0;
-      pocsagScrollLast = millis();
-    } else {
-      pocsagStaticUntil    = millis() + POCSAG_STATIC_MS;
-      pocsagStaticLastDraw = 0;
-    }
+    applyDisplayMessageState(msgBuf, nullptr, true);
   }
 }
 

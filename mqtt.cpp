@@ -10,6 +10,7 @@
 #include "nvs_settings.h"
 #include "display.h"
 #include "buttons.h"
+#include "receiver.h"
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <LittleFS.h>
@@ -235,6 +236,26 @@ static void _discButton(const char* id, const char* name, const char* dc) {
   _pubDisc("button", id, buf);
 }
 
+static void _discText(const char* id, const char* name, int maxLen) {
+  char st[96], cmd[96], av[80], uid[72], dev[320], buf[768];
+  _stTopic(st, sizeof(st), "sensor", "pocsag_msg");
+  _cmdTopic(cmd, sizeof(cmd), "text", id);
+  _availTopic(av, sizeof(av));
+  snprintf(uid, sizeof(uid), "%s_%s_%s", mqttNodeId, _mac, id);
+  _devBlock(dev, sizeof(dev));
+
+  snprintf(buf, sizeof(buf),
+    "{\"name\":\"%s\",\"unique_id\":\"%s\"," 
+    "\"state_topic\":\"%s\","
+    "\"command_topic\":\"%s\","
+    "\"availability_topic\":\"%s\","
+    "\"payload_available\":\"online\","
+    "\"payload_not_available\":\"offline\","
+    "\"max\":%d,%s}",
+    name, uid, st, cmd, av, maxLen, dev);
+  _pubDisc("text", id, buf);
+}
+
 static void _publishAllDiscovery() {
   if (!mqttDiscovery) return;
 
@@ -251,6 +272,7 @@ static void _publishAllDiscovery() {
 #if RECV_POCSAG
   _discSensor("pocsag_msg",   "POCSAG Message", "", "");
   _discSensor("pocsag_count", "POCSAG Count",   "", "");
+  _discText("display_message", "Display Message", POCSAG_MSG_MAX_LEN);
 #endif
 #if RECV_DMR
   _discSensor("dmr_count",    "DMR Count",      "", "");
@@ -376,7 +398,7 @@ static void _publishState() {
 // ── Incoming command callback ──────────────────────────────────────────────────
 
 static void _callback(char* topic, byte* payload, unsigned int length) {
-  char val[64] = {};
+  char val[192] = {};
   int n = (length < sizeof(val) - 1) ? (int)length : (int)sizeof(val) - 1;
   memcpy(val, payload, n);
   val[n] = '\0';
@@ -385,6 +407,32 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
   String pfx = String(mqttNodeId) + "/";
   if (!t.startsWith(pfx)) return;
   String sub = t.substring(pfx.length());  // e.g. "switch/auto_brightness/set"
+
+  auto _jsonField = [](const String& json, const char* key) -> String {
+    String needle = String("\"") + key + "\"";
+    int k = json.indexOf(needle);
+    if (k < 0) return "";
+    int c = json.indexOf(':', k + needle.length());
+    if (c < 0) return "";
+    int q1 = json.indexOf('"', c + 1);
+    if (q1 < 0) return "";
+    int q2 = json.indexOf('"', q1 + 1);
+    if (q2 < 0) return "";
+    return json.substring(q1 + 1, q2);
+  };
+  auto _jsonBool = [](const String& json, const char* key, bool defVal) -> bool {
+    String needle = String("\"") + key + "\"";
+    int k = json.indexOf(needle);
+    if (k < 0) return defVal;
+    int c = json.indexOf(':', k + needle.length());
+    if (c < 0) return defVal;
+    String tail = json.substring(c + 1);
+    tail.trim();
+    tail.toLowerCase();
+    if (tail.startsWith("true")) return true;
+    if (tail.startsWith("false")) return false;
+    return defVal;
+  };
 
   // ── Brightness ──────────────────────────────────────────────────────────────
   if (sub == "switch/auto_brightness/set") {
@@ -554,15 +602,15 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     LOG("[MQTT] indicators → %s\n", val);
 
   } else if (sub == "button/btn_left/command"   && strcmp(val, "PRESS") == 0) {
-    triggerButton(0, false);
+    queueButtonPress(0, false);
     LOG("[MQTT] btn_left\n");
 
   } else if (sub == "button/btn_middle/command" && strcmp(val, "PRESS") == 0) {
-    triggerButton(1, false);
+    queueButtonPress(1, false);
     LOG("[MQTT] btn_middle\n");
 
   } else if (sub == "button/btn_right/command"  && strcmp(val, "PRESS") == 0) {
-    triggerButton(2, false);
+    queueButtonPress(2, false);
     LOG("[MQTT] btn_right\n");
 
   } else if (sub == "button/reboot/command" && strcmp(val, "PRESS") == 0) {
@@ -576,6 +624,27 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     timeSynced   = false;
     pocsagSynced = false;
     displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
+
+  } else if (sub == "text/display_message/set") {
+#if RECV_POCSAG
+    String payloadStr = String(val);
+    String text = payloadStr;
+    String icon = "";
+    bool beep = true;
+    if (payloadStr.length() && payloadStr[0] == '{') {
+      String jt = _jsonField(payloadStr, "text");
+      if (jt.length()) text = jt;
+      icon = _jsonField(payloadStr, "icon");
+      beep = _jsonBool(payloadStr, "beep", true);
+    }
+    text.trim();
+    icon.trim();
+    if (text.length() && injectDisplayMessage(text.c_str(), icon.length() ? icon.c_str() : nullptr, beep)) {
+      LOG("[MQTT] display_message injected\n");
+    } else {
+      LOG("[MQTT] display_message ignored (empty/invalid)\n");
+    }
+#endif
   }
 
   // Guarantee state reaches HA even if the inline _pubStr above was dropped
@@ -623,6 +692,7 @@ static bool _doConnect() {
   snprintf(sub, sizeof(sub), "%s/switch/+/set",     mqttNodeId); _mqtt.subscribe(sub);
   snprintf(sub, sizeof(sub), "%s/number/+/set",     mqttNodeId); _mqtt.subscribe(sub);
   snprintf(sub, sizeof(sub), "%s/select/+/set",     mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/text/+/set",       mqttNodeId); _mqtt.subscribe(sub);
   snprintf(sub, sizeof(sub), "%s/button/+/command", mqttNodeId); _mqtt.subscribe(sub);
 
   // Publish discovery + immediate state
@@ -706,7 +776,8 @@ static void mqttTaskFn(void*) {
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 void initMqttTask() {
-  xTaskCreatePinnedToCore(mqttTaskFn, "mqttTask", 6144, nullptr, 1, nullptr, 0);
+  // Extra headroom for discovery payload formatting and command parsing.
+  xTaskCreatePinnedToCore(mqttTaskFn, "mqttTask", 9216, nullptr, 1, nullptr, 0);
 }
 
 void mqttNotifyPocsag() {

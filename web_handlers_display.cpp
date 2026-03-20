@@ -8,6 +8,34 @@
 #include "mqtt.h"
 #include "sensor.h"
 #include "buttons.h"
+#include "receiver.h"
+
+static String jsonField(const String& json, const char* key) {
+  String needle = String("\"") + key + "\"";
+  int k = json.indexOf(needle);
+  if (k < 0) return "";
+  int c = json.indexOf(':', k + needle.length());
+  if (c < 0) return "";
+  int q1 = json.indexOf('"', c + 1);
+  if (q1 < 0) return "";
+  int q2 = json.indexOf('"', q1 + 1);
+  if (q2 < 0) return "";
+  return json.substring(q1 + 1, q2);
+}
+
+static bool jsonBoolField(const String& json, const char* key, bool defaultValue) {
+  String needle = String("\"") + key + "\"";
+  int k = json.indexOf(needle);
+  if (k < 0) return defaultValue;
+  int c = json.indexOf(':', k + needle.length());
+  if (c < 0) return defaultValue;
+  String tail = json.substring(c + 1);
+  tail.trim();
+  tail.toLowerCase();
+  if (tail.startsWith("true")) return true;
+  if (tail.startsWith("false")) return false;
+  return defaultValue;
+}
 
 void registerDisplayHandlers() {
 
@@ -202,6 +230,41 @@ void registerDisplayHandlers() {
     pocsagSynced = false;
     displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
     webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/display/message", HTTP_POST, []() {
+#if RECV_POCSAG
+    String text = webServer.arg("text");
+    String icon = webServer.arg("icon");
+    bool beep = true;
+    if (webServer.hasArg("beep")) {
+      String b = webServer.arg("beep");
+      b.toLowerCase();
+      beep = (b == "1" || b == "true" || b == "on" || b == "yes");
+    }
+    if (webServer.hasArg("plain")) {
+      String body = webServer.arg("plain");
+      String jt = jsonField(body, "text");
+      if (jt.length()) text = jt;
+      String ji = jsonField(body, "icon");
+      if (ji.length()) icon = ji;
+      beep = jsonBoolField(body, "beep", beep);
+    }
+    text.trim();
+    icon.trim();
+    if (text.length() == 0) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"text required\"}");
+      return;
+    }
+    const char* iconPtr = icon.length() ? icon.c_str() : nullptr;
+    if (!injectDisplayMessage(text.c_str(), iconPtr, beep)) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid message\"}");
+      return;
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+#else
+    webServer.send(501, "application/json", "{\"ok\":false,\"error\":\"RECV_POCSAG disabled\"}");
+#endif
   });
 
   webServer.on("/api/screensaver", HTTP_GET, []() {

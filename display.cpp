@@ -605,6 +605,7 @@ void loopDisplay() {
   // POCSAG message display — takes priority over all modes
 #if RECV_POCSAG
   if (pocsagMsgActive) {
+    const char* msgIcon = pocsagMsgUseCustomIcon ? pocsagMsgCustomIconFile : iconPocsagFile;
     const int yo = (MATRIX_HEIGHT - 5) / 2;
     if (!pocsagIsScrolling) {
       // Static: redraw at GIF frame rate (animated icon) or 500 ms for bitmaps
@@ -615,7 +616,7 @@ void loopDisplay() {
         if (first) _pocsagStaticGifDelay = 100;  // reset for each new message
         FastLED.clear();
         int gifDelay = 500;
-        int textX = drawIcon(iconPocsagFile, &gifDelay);
+        int textX = drawIcon(msgIcon, &gifDelay);
         if (textX == ICON_DRAW_FAILED) {
           gifDelay = 500;
           textX = 0;
@@ -634,6 +635,8 @@ void loopDisplay() {
       }
       if (millis() >= pocsagStaticUntil) {
         pocsagMsgActive       = false;
+        pocsagMsgUseCustomIcon = false;
+        pocsagMsgCustomIconFile[0] = '\0';
         screensaverIdleStart  = millis();  // restart idle countdown after message
         pocsagIndicatorUntil  = millis() + 10000;  // blink Ind2 for 10 s after display ends
       }
@@ -653,7 +656,7 @@ void loopDisplay() {
       // Advance icon frame only when GIF delay has elapsed; track whether icon is present
       if (millis() >= _scrollNextGifMs) {
         int gifDelay = 100;
-        int textX = drawIcon(iconPocsagFile, &gifDelay, 0);
+        int textX = drawIcon(msgIcon, &gifDelay, 0);
         _scrollHasIcon = (textX != ICON_DRAW_FAILED);
         _scrollNextGifMs = millis() + max(gifDelay, 33);
       }
@@ -678,6 +681,8 @@ void loopDisplay() {
       if (pocsagScrollX < -(pocsagMsgLen * 4)) {
         if (++pocsagScrollPass >= POCSAG_SCROLL_PASSES) {
           pocsagMsgActive      = false;
+          pocsagMsgUseCustomIcon = false;
+          pocsagMsgCustomIconFile[0] = '\0';
           screensaverIdleStart = millis();
           pocsagIndicatorUntil = millis() + 10000;  // blink Ind2 for 10 s after scroll ends
           _scrollFirst         = true;   // reset for next message

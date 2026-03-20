@@ -76,12 +76,14 @@ char iconPocsagFile[32] = "";
 char  pocsagMsg[POCSAG_MSG_MAX_LEN + 1] = {};
 int   pocsagMsgLen        = 0;
 bool  pocsagMsgActive     = false;
+bool  pocsagMsgUseCustomIcon = false;
 bool  pocsagIsScrolling   = false;
 int   pocsagScrollX       = 0;
 int   pocsagScrollPass    = 0;
 unsigned long pocsagScrollLast    = 0;
 unsigned long pocsagStaticUntil   = 0;
 unsigned long pocsagStaticLastDraw = 0;  // 0 = force immediate draw
+char  pocsagMsgCustomIconFile[32] = "";
 #endif
 
 // Brightness (LDR auto + manual)

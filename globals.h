@@ -76,12 +76,14 @@ extern char iconPocsagFile[32];
 extern char          pocsagMsg[POCSAG_MSG_MAX_LEN + 1];
 extern int           pocsagMsgLen;
 extern bool          pocsagMsgActive;
+extern bool          pocsagMsgUseCustomIcon;
 extern bool          pocsagIsScrolling;
 extern int           pocsagScrollX;
 extern int           pocsagScrollPass;
 extern unsigned long pocsagScrollLast;
 extern unsigned long pocsagStaticUntil;
 extern unsigned long pocsagStaticLastDraw;
+extern char          pocsagMsgCustomIconFile[32];
 #endif
 
 // ── Brightness ────────────────────────────────────────────────────────────────

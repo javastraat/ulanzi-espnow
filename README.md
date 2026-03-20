@@ -430,6 +430,34 @@ POST `/api/colors` accepts any subset of:
 | POST | `/api/btn/middle` | Trigger middle button action (toggle auto-brightness) |
 | POST | `/api/btn/right` | Trigger right button action (cycle display mode) |
 
+### Display message inject
+
+| Method | Endpoint | Body params | Description |
+|---|---|---|---|
+| POST | `/api/display/message` | `text=...` · `icon=/icons/x.gif` · `beep=true/false` | Inject a message to the matrix using the same render path as incoming POCSAG |
+
+How to use with curl
+
+Form style:
+
+```bash
+curl -X POST http://ULANZI_IP/api/display/message -d "text=Hello from curl"
+```
+
+With icon and beep:
+
+```bash
+curl -X POST http://ULANZI_IP/api/display/message -d "text=Doorbell" -d "icon=/icons/bell.gif" -d "beep=true"
+```
+
+JSON style:
+
+```bash
+curl -X POST http://ULANZI_IP/api/display/message \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Dinner ready","icon":"/icons/bell.gif","beep":true}'
+```
+
 ### Device identity
 
 | Method | Endpoint | Body params | Description |

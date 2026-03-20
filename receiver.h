@@ -5,4 +5,5 @@ void setupReceiver();
 
 #if RECV_POCSAG
 void processPocsagPacket(const EspNowPocsagPacket& pkt);
+bool injectDisplayMessage(const char* text, const char* iconFile = nullptr, bool beep = true);
 #endif
