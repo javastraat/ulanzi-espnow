@@ -10,3 +10,7 @@ void saveWifiSlot(int slot, const String& label, const String& ssid, const Strin
 void resetWifiSlot(int slot);
 void saveWifiApSettings();
 void resetWifiApSettings();
+
+// ArduinoOTA settings (separate save so callers don't have to save everything)
+void saveOtaSettings();
+void resetOtaSettings();

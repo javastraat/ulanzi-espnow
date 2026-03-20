@@ -138,6 +138,11 @@ extern bool          mdnsStarted;
 extern bool          debugLogEnabled;  // NVS: "debug_log" — enables DLOG() output
 extern int           otaLastBarW;
 
+// ArduinoOTA runtime settings (NVS-backed, namespace "ulanzi")
+extern bool          otaEnabled;       // NVS: "ota_en"   — enable/disable ArduinoOTA
+extern char          otaPassword[64];  // NVS: "ota_pass" — OTA password
+extern int           otaPort;          // NVS: "ota_port" — OTA port
+
 // ── WiFi multi-slot + SoftAP ──────────────────────────────────────────────────
 
 #define WIFI_SLOT_COUNT 6

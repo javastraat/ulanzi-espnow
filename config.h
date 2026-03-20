@@ -28,6 +28,14 @@
 // Settings page — the saved value is stored in NVS key "mdns_name".
 #define MDNS_HOSTNAME "ulanzi-espnow"
 #define OTA_PASSWORD  "ulanzi"           // leave empty "" to disable password
+#define OTA_PORT      3232               // ArduinoOTA port (default 3232)
+
+// Remote OTA firmware URLs — set these to your GitHub raw URLs.
+// The Firmware page uses these for online updates.
+#define OTA_FIRMWARE_URL       "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/firmware/update.bin"
+#define OTA_FIRMWARE_BETA_URL  "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/firmware/update_beta.bin"
+#define OTA_VERSION_URL        "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/version.txt"
+#define OTA_VERSION_BETA_URL   "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/version_beta.txt"
 
 
 // ============================================================

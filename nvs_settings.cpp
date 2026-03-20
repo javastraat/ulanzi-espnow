@@ -67,6 +67,23 @@ void resetWifiApSettings() {
   saveWifiApSettings();
 }
 
+void saveOtaSettings() {
+  Preferences p;
+  p.begin("ulanzi", false);
+  p.putBool  ("ota_en",   otaEnabled);
+  p.putInt   ("ota_port", otaPort);
+  p.putString("ota_pass", otaPassword);
+  p.end();
+}
+
+void resetOtaSettings() {
+  otaEnabled = true;
+  otaPort    = OTA_PORT;
+  strncpy(otaPassword, OTA_PASSWORD, 63);
+  otaPassword[63] = '\0';
+  saveOtaSettings();
+}
+
 static inline uint32_t packCRGB(CRGB c)       { return ((uint32_t)c.r<<16)|((uint32_t)c.g<<8)|c.b; }
 static inline CRGB     unpackCRGB(uint32_t v) { return CRGB((v>>16)&0xFF,(v>>8)&0xFF,v&0xFF); }
 
@@ -87,6 +104,10 @@ void loadSettings() {
   autoRotateEnabled     = p.getBool ("rot_en",  false);
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
   // Device name + mDNS hostname
+  // ArduinoOTA runtime settings
+  otaEnabled = p.getBool("ota_en", true);
+  otaPort    = p.getInt ("ota_port", OTA_PORT);
+  { String s = p.getString("ota_pass", OTA_PASSWORD); strncpy(otaPassword, s.c_str(), 63); otaPassword[63] = '\0'; }
   // Debug logging
   debugLogEnabled = p.getBool("debug_log", false);
   // MQTT
@@ -167,6 +188,10 @@ void saveSettings() {
   // Display rotation
   p.putBool ("rot_en",  autoRotateEnabled);
   p.putUChar("rot_sec", autoRotateIntervalSec);
+  // ArduinoOTA runtime settings
+  p.putBool  ("ota_en",   otaEnabled);
+  p.putInt   ("ota_port", otaPort);
+  p.putString("ota_pass", otaPassword);
   // Debug logging
   p.putBool("debug_log", debugLogEnabled);
   // MQTT

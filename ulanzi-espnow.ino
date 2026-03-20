@@ -23,6 +23,8 @@
  */
 
 #include "globals.h"
+#include <esp_ota_ops.h>
+#include <Preferences.h>
 #include "buzzer.h"
 #include "buttons.h"
 #include "display.h"
@@ -129,6 +131,11 @@ bool          mdnsStarted     = false;
 bool          debugLogEnabled = false; // NVS: "debug_log" — enables DLOG() output
 int           otaLastBarW    = -1;
 
+// ArduinoOTA runtime settings (NVS-backed)
+bool          otaEnabled  = true;
+char          otaPassword[64] = OTA_PASSWORD;
+int           otaPort     = OTA_PORT;
+
 // IP address scroll — armed once after WiFi connects
 bool          ipScrollActive = false;
 char          ipScrollMsg[32] = {};
@@ -226,6 +233,17 @@ void setup() {
   setupRTC();
   setupSHT31();   // probe 0x44; Wire already started by setupRTC()
   setupBuzzer();
+  // Record which firmware version is running on this OTA partition (used by Firmware page)
+  {
+    const esp_partition_t* rp = esp_ota_get_running_partition();
+    if (rp) {
+      Preferences ota; ota.begin("ota", false);
+      if      (strcmp(rp->label, "app0") == 0) ota.putString("ver_app0", FIRMWARE_VERSION);
+      else if (strcmp(rp->label, "app1") == 0) ota.putString("ver_app1", FIRMWARE_VERSION);
+      ota.end();
+    }
+  }
+
   setupReceiver();// connects WiFi → calls setupOTA() → starts webServer
 
   // Arm IP scroll if WiFi connected, or show AP name so user knows where to connect

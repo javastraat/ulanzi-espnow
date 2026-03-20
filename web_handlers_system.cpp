@@ -3,11 +3,13 @@
 #include "web_handlers_system.h"
 #include "globals.h"
 #include "nvs_settings.h"
+#include "display.h"
 #include <Preferences.h>
 #include "mqtt.h"
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 #include <Update.h>
+#include <HTTPClient.h>
 extern "C" {
 #include <nvs_flash.h>
 #include <nvs.h>
@@ -136,45 +138,135 @@ void registerSystemHandlers() {
     webServer.send(200, "application/json", "{\"ok\":true,\"reboot\":true}");
   });
 
-  // ── Firmware info (version, build, OTA status, partition) ────────────────
+  // ── Firmware info (version, build, OTA status, partition, per-slot versions) ─
   webServer.on("/api/firmware-info", HTTP_GET, []() {
     const esp_partition_t* running = esp_ota_get_running_partition();
     const esp_partition_t* boot    = esp_ota_get_boot_partition();
     const esp_partition_t* app0    = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
     const esp_partition_t* app1    = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
     String md5 = ESP.getSketchMD5();
-    char buf[640];
-    snprintf(buf, sizeof(buf),
-      "{"
-      "\"version\":\"%s\","
-      "\"build\":\"%s %s\","
-      "\"sketch_kb\":%u,"
-      "\"ota_kb\":%u,"
-      "\"partition\":\"%s\","
-      "\"md5\":\"%s\","
-      "\"ota_started\":%s,"
-      "\"ota_host\":\"%s\","
-      "\"ota_password\":%s,"
-      "\"part_running\":\"%s\","
-      "\"part_boot\":\"%s\","
-      "\"part_app0_kb\":%u,"
-      "\"part_app1_kb\":%u"
-      "}",
-      FIRMWARE_VERSION,
-      __DATE__, __TIME__,
-      ESP.getSketchSize() / 1024,
-      ESP.getFreeSketchSpace() / 1024,
-      running ? running->label : "unknown",
-      md5.c_str(),
-      otaStarted ? "true" : "false",
-      mdnsName,
-      strlen(OTA_PASSWORD) > 0 ? "true" : "false",
-      running ? running->label : "unknown",
-      boot    ? boot->label    : "unknown",
-      app0    ? app0->size / 1024 : 0,
-      app1    ? app1->size / 1024 : 0
-    );
-    webServer.send(200, "application/json", buf);
+    // Per-partition firmware versions stored on each boot
+    Preferences ota; ota.begin("ota", true);
+    String ver0 = ota.getString("ver_app0", "Unknown");
+    String ver1 = ota.getString("ver_app1", "Unknown");
+    ota.end();
+    // Override the currently running partition's stored version with live value
+    const char* runLabel = running ? running->label : "unknown";
+    if (strcmp(runLabel, "app0") == 0) ver0 = FIRMWARE_VERSION;
+    else if (strcmp(runLabel, "app1") == 0) ver1 = FIRMWARE_VERSION;
+
+    // Escape strings for JSON
+    auto esc = [](const String& s) -> String {
+      String out; out.reserve(s.length() + 4);
+      for (char c : s) { if (c=='"') out += "\\\""; else out += c; }
+      return out;
+    };
+
+    String json = "{";
+    json += "\"version\":\"" + esc(String(FIRMWARE_VERSION)) + "\",";
+    json += "\"build\":\"" + esc(String(__DATE__) + " " + String(__TIME__)) + "\",";
+    json += "\"chip\":\"" + esc(String(ESP.getChipModel())) + "\",";
+    json += "\"sketch_size\":" + String(ESP.getSketchSize()) + ",";
+    json += "\"ota_space\":" + String(ESP.getFreeSketchSpace()) + ",";
+    json += "\"part_size\":" + String(running ? running->size : 0) + ",";
+    json += "\"md5\":\"" + md5 + "\",";
+    json += "\"ota_started\":" + String(otaStarted ? "true" : "false") + ",";
+    json += "\"ota_enabled\":" + String(otaEnabled ? "true" : "false") + ",";
+    json += "\"ota_password\":" + String(strlen(otaPassword) > 0 ? "true" : "false") + ",";
+    json += "\"ota_password_val\":\"" + esc(String(otaPassword)) + "\",";
+    json += "\"ota_port\":" + String(otaPort) + ",";
+    json += "\"ota_host\":\"" + esc(String(mdnsName)) + "\",";
+    json += "\"part_running\":\"" + esc(String(runLabel)) + "\",";
+    json += "\"part_boot\":\"" + esc(String(boot ? boot->label : "unknown")) + "\",";
+    json += "\"part_app0_size\":" + String(app0 ? app0->size : 0) + ",";
+    json += "\"part_app1_size\":" + String(app1 ? app1->size : 0) + ",";
+    json += "\"ver_app0\":\"" + esc(ver0) + "\",";
+    json += "\"ver_app1\":\"" + esc(ver1) + "\"";
+    json += "}";
+    webServer.send(200, "application/json", json);
+  });
+
+  // ── Online firmware download → flash (streams from URL into OTA partition) ──
+  webServer.on("/api/ota-download", HTTP_POST, []() {
+    String version = webServer.arg("version");
+    const char* url = (version == "beta") ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
+    LOG("[OTA-DL] Downloading: %s\n", url);
+
+    HTTPClient http;
+    http.begin(url);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    int code = http.GET();
+    if (code != 200) {
+      webServer.send(400, "text/plain", "ERROR: HTTP " + String(code));
+      http.end(); return;
+    }
+    int totalSize = http.getSize();
+    WiFiClient* stream = http.getStreamPtr();
+
+    if (!Update.begin(totalSize > 0 ? totalSize : UPDATE_SIZE_UNKNOWN)) {
+      webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
+      http.end(); return;
+    }
+
+    otaInProgress = true;
+    otaLastBarW   = -1;
+    drawUpdate();
+
+    uint8_t* buf = (uint8_t*)malloc(1024);
+    if (!buf) {
+      otaInProgress = false;
+      drawError();
+      webServer.send(500, "text/plain", "ERROR: out of memory");
+      http.end(); return;
+    }
+    int written = 0;
+    while (http.connected() && (totalSize < 0 || written < totalSize)) {
+      int avail = stream->available();
+      if (avail > 0) {
+        int n = stream->readBytes(buf, min(avail, 1024));
+        Update.write(buf, n);
+        written += n;
+        if (totalSize > 0) {
+          int barW = (int)((long)MATRIX_WIDTH * written / totalSize);
+          if (barW != otaLastBarW) { otaLastBarW = barW; drawProgress(barW); }
+        }
+      } else { delay(1); }
+    }
+    free(buf);
+    http.end();
+
+    if (!Update.end(true)) {
+      otaInProgress = false;
+      drawError();
+      webServer.send(500, "text/plain", "ERROR: " + String(Update.errorString()));
+      return;
+    }
+    drawDone();
+    otaInProgress = false;
+    LOG("[OTA-DL] Done: %d bytes\n", written);
+    webServer.send(200, "text/plain", "SUCCESS (" + String(written) + " bytes)");
+  });
+
+  // ── Save ArduinoOTA settings ──────────────────────────────────────────────
+  webServer.on("/api/save-ota-settings", HTTP_POST, []() {
+    otaEnabled = (webServer.arg("enabled") == "1");
+    int port   = webServer.arg("port").toInt();
+    if (port < 1 || port > 65535) port = OTA_PORT;
+    otaPort = port;
+    String pw = webServer.arg("password");
+    strncpy(otaPassword, pw.c_str(), 63); otaPassword[63] = '\0';
+    saveOtaSettings();
+    webServer.send(200, "text/plain", "OTA settings saved. Rebooting…");
+    delay(300);
+    ESP.restart();
+  });
+
+  // ── Reset ArduinoOTA settings to defaults ────────────────────────────────
+  webServer.on("/api/reset-ota-settings", HTTP_POST, []() {
+    resetOtaSettings();
+    webServer.send(200, "text/plain", "OTA settings reset to defaults.");
+    delay(300);
+    ESP.restart();
   });
 
   // ── Web OTA upload — receives a .bin file and flashes it ─────────────────

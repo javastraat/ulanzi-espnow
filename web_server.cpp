@@ -68,7 +68,7 @@ static void setupWebServer() {
   });
 
   webServer.on("/firmware", HTTP_GET, []() {
-    webServer.send_P(200, "text/html", PAGE_FIRMWARE);
+    webServer.send(200, "text/html", getFirmwarePageHTML());
   });
 
   // ── Favicon / PWA assets ───────────────────────────────────────────────────
@@ -136,7 +136,13 @@ void setupOTA() {
   // with the OTA hostname, which would override ours. Start OTA first, then
   // call MDNS.begin() after so our mdnsName always wins.
   ArduinoOTA.setHostname(mdnsName);
-  if (strlen(OTA_PASSWORD) > 0) ArduinoOTA.setPassword(OTA_PASSWORD);
+  ArduinoOTA.setPort(otaPort);
+  if (strlen(otaPassword) > 0) ArduinoOTA.setPassword(otaPassword);
+  if (!otaEnabled) {
+    LOG("[OTA] Disabled via settings — skipping ArduinoOTA setup\n");
+    setupWebServer();
+    return;
+  }
   ArduinoOTA.onStart([]() {
     LOG("[OTA] Start\n");
     otaInProgress = true;
