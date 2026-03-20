@@ -5,3 +5,4 @@
 
 void loopButtons();
 void triggerButton(int i, bool longPress);  // 0=left, 1=middle, 2=right
+void queueButtonPress(int i, bool longPress);  // thread-safe button press from web handler

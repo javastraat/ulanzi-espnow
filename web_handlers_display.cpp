@@ -188,6 +188,8 @@ void registerDisplayHandlers() {
   });
 
   webServer.on("/api/leds", HTTP_GET, []() {
+    // Simply return current LED buffer state.
+    // Main display loop handles brightness overlay drawing.
     char hex[NUM_LEDS * 6 + 1];
     for (int i = 0; i < NUM_LEDS; i++)
       snprintf(hex + i * 6, 7, "%02X%02X%02X", leds[i].r, leds[i].g, leds[i].b);
@@ -310,8 +312,8 @@ void registerDisplayHandlers() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
-  // ── Virtual buttons (same action as physical buttons) ──────────────────────
-  webServer.on("/api/btn/left",   HTTP_POST, []() { triggerButton(0, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
-  webServer.on("/api/btn/middle", HTTP_POST, []() { triggerButton(1, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
-  webServer.on("/api/btn/right",  HTTP_POST, []() { triggerButton(2, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  // ── Virtual buttons (queued to main loop to avoid race conditions) ────────
+  webServer.on("/api/btn/left",   HTTP_POST, []() { queueButtonPress(0, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/middle", HTTP_POST, []() { queueButtonPress(1, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+  webServer.on("/api/btn/right",  HTTP_POST, []() { queueButtonPress(2, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
 }

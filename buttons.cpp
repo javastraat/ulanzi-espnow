@@ -7,6 +7,26 @@
 #include "mqtt.h"
 #include "nvs_settings.h"
 
+// ── Queue for web-triggered button presses (to avoid race conditions) ────────
+
+struct QueuedButton { int index; bool longPress; };
+static QueuedButton buttonQueue[4] = {};
+static volatile uint8_t queueHead = 0;
+static volatile uint8_t queueTail = 0;
+
+static void _queueButtonPressInternal(int i, bool longPress) {
+  uint8_t next = (queueTail + 1) % 4;
+  if (next != queueHead) {
+    buttonQueue[queueTail].index = i;
+    buttonQueue[queueTail].longPress = longPress;
+    queueTail = next;
+  }
+}
+
+void queueButtonPress(int i, bool longPress) {
+  _queueButtonPressInternal(i, longPress);
+}
+
 // ── Brightness cycle helpers ──────────────────────────────────────────────────
 
 static const uint8_t BMODE_LEVELS[BMODE_COUNT] = { 0, 5, 20, 80, 255 };  // AUTO unused (LDR)
@@ -146,6 +166,13 @@ void triggerButton(int i, bool longPress) {
 // ── Loop: debounce + short/long-press detection ───────────────────────────────
 
 void loopButtons() {
+  // Process any queued button presses from web handler first
+  while (queueHead != queueTail) {
+    QueuedButton btn = buttonQueue[queueHead];
+    queueHead = (queueHead + 1) % 4;
+    triggerButton(btn.index, btn.longPress);
+  }
+
   static bool          lastState[3]     = {HIGH, HIGH, HIGH};
   static unsigned long pressStart[3]    = {0, 0, 0};
   static bool          longFired[3]     = {false, false, false};
