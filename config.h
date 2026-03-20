@@ -1,5 +1,9 @@
 #pragma once
  
+// Firmware version
+//#define FIRMWARE_VERSION "20260320_ULANZI"
+#define FIRMWARE_VERSION "20260320_ULANZI_BETA"
+
 // ============================================================
 // Protocol modes — enable one or both (at least one required)
 // ============================================================
