@@ -39,6 +39,7 @@ struct __attribute__((packed)) EspNowPocsagPacket {
 struct WsPocsagEntry {
   uint32_t ric;
   char     msg[POCSAG_MSG_MAX_LEN + 1];
+  char     ts[9];   // "HH:MM:SS" or "" if time unknown
 };
 
 // ── LED matrix ────────────────────────────────────────────────────────────────
@@ -69,6 +70,8 @@ extern char iconTempFile[32];
 extern char iconHumFile[32];
 extern char iconBatFile[32];
 extern char iconPocsagFile[32];
+extern char iconHassFile[32];
+extern char iconWebFile[32];
 
 // ── POCSAG display state ──────────────────────────────────────────────────────
 

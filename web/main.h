@@ -98,6 +98,7 @@ function poll(){
       var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
       for(var i=0;i<log.length;i++){
         html+='<tr>'
+          +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(log[i].ts||'--:--:--')+'</td>'
           +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">RIC '+log[i].ric+'</td>'
           +'<td style="padding:2px 0;word-break:break-all">'+log[i].msg+'</td>'
           +'</tr>';

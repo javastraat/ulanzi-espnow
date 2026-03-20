@@ -113,6 +113,118 @@ static const char PAGE_FILES[] PROGMEM =
     </div>
   </div>
 
+  <!-- Icon assignments -->
+  <div class="card">
+    <h3>Icons</h3>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Temp</span>
+        <img id="prev-temp" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-temp" onchange="onIconChange('icon-temp','prev-temp')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-temp')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Humidity</span>
+        <img id="prev-hum" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-hum" onchange="onIconChange('icon-hum','prev-hum')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-hum')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Battery</span>
+        <img id="prev-bat" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-bat" onchange="onIconChange('icon-bat','prev-bat')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-bat')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">ESP-Now</span>
+        <img id="prev-poc" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-poc" onchange="onIconChange('icon-poc','prev-poc')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-poc')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Home Assistant</span>
+        <img id="prev-hass" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-hass" onchange="onIconChange('icon-hass','prev-hass')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-hass')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div style="padding:8px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="metric-label">Web Message</span>
+        <img id="prev-web" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="icon-web" onchange="onIconChange('icon-web','prev-web')"
+                style="flex:1;min-width:0;padding:4px 6px;background:var(--bg-secondary);
+                       color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em">
+          <option value="">(none)</option>
+        </select>
+        <button onclick="showIcon('icon-web')"
+                style="background:#444;color:#fff;border:none;padding:4px 10px;
+                       border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
+      </div>
+    </div>
+    <div id="icon-no-files" style="display:none;font-size:.82em;padding:4px 0 8px">
+      No icons found in /icons/ — upload one using the downloader above or the file browser above.
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
+      <span id="icon-assign-status" style="font-size:.82em;color:var(--text-muted)"></span>
+      <button onclick="saveIcons()"
+              style="background:#00bcd4;color:#000;border:none;padding:6px 18px;
+                     border-radius:4px;cursor:pointer;font-weight:bold;font-size:.88em">
+        Save Icons
+      </button>
+    </div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -357,8 +469,71 @@ function fbRename(path){
     inp.onkeydown=function(e){if(e.key==='Enter')ok.onclick();if(e.key==='Escape')no.onclick();};
   });
 }
+function updateIconPreview(selId,imgId){
+  var path=document.getElementById(selId).value;
+  var img=document.getElementById(imgId);
+  if(path){img.src='/api/fs/download?path='+encodeURIComponent(path);img.style.display='inline-block';}
+  else{img.src='';img.style.display='none';}
+}
+function onIconChange(selId,imgId){updateIconPreview(selId,imgId);}
+function showIcon(selId){
+  var path=document.getElementById(selId).value;
+  if(!path)return;
+  fetch('/api/icons/preview',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'path='+encodeURIComponent(path)
+  }).catch(function(){});
+}
+function populateIconSelect(selId,imgId,files,current){
+  var sel=document.getElementById(selId);
+  sel.innerHTML='<option value="">(none)</option>';
+  var found=false;
+  files.forEach(function(f){
+    var opt=document.createElement('option');
+    opt.value=f.path;opt.textContent=f.name;
+    if(f.path===current){opt.selected=true;found=true;}
+    sel.appendChild(opt);
+  });
+  if(current&&!found){
+    var opt=document.createElement('option');
+    opt.value=current;
+    var sl=current.lastIndexOf('/');
+    opt.textContent=(sl>=0?current.substring(sl+1):current)+' (saved)';
+    opt.selected=true;sel.appendChild(opt);
+  }
+  updateIconPreview(selId,imgId);
+}
+function saveIcons(){
+  var body='temp_icon='+encodeURIComponent(document.getElementById('icon-temp').value)
+          +'&hum_icon='+encodeURIComponent(document.getElementById('icon-hum').value)
+          +'&bat_icon='+encodeURIComponent(document.getElementById('icon-bat').value)
+          +'&poc_icon='+encodeURIComponent(document.getElementById('icon-poc').value)
+          +'&hass_icon='+encodeURIComponent(document.getElementById('icon-hass').value)
+          +'&web_icon='+encodeURIComponent(document.getElementById('icon-web').value);
+  fetch('/api/icons',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('icon-assign-status');
+    s.textContent=d.ok?'Saved':'Error';s.style.color=d.ok?'#28a745':'#dc3545';
+    setTimeout(function(){s.textContent='';},2500);
+  }).catch(function(){});
+}
+function loadIcons(){
+  fetch('/api/icons').then(function(r){return r.json();}).then(function(d){
+    fetch('/api/fs/ls?path=/icons').then(function(r){return r.json();}).then(function(ls){
+      var files=(ls.entries||[]).filter(function(e){return !e.isDir&&/\.(gif|jpg|jpeg)$/i.test(e.name);});
+      if(files.length===0){document.getElementById('icon-no-files').style.display='block';}
+      populateIconSelect('icon-temp','prev-temp',files,d.temp||'');
+      populateIconSelect('icon-hum', 'prev-hum', files,d.hum||'');
+      populateIconSelect('icon-bat', 'prev-bat', files,d.bat||'');
+      populateIconSelect('icon-poc', 'prev-poc', files,d.poc||'');
+      populateIconSelect('icon-hass','prev-hass',files,d.hass||'');
+      populateIconSelect('icon-web', 'prev-web', files,d.web||'');
+    }).catch(function(){});
+  }).catch(function(){});
+}
 loadFs();
 fbNavigate('/');
+loadIcons();
 </script>
 </body></html>
 )html";

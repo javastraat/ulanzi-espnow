@@ -44,7 +44,7 @@ static void applyDisplayMessageState(const char* msg, const char* iconFile, bool
   }
 }
 
-bool injectDisplayMessage(const char* text, const char* iconFile, bool beep) {
+bool injectDisplayMessage(const char* text, const char* iconFile, bool beep, uint32_t ric) {
   if (!text) return false;
 
   char trimmed[POCSAG_MSG_MAX_LEN + 1] = {};
@@ -60,9 +60,10 @@ bool injectDisplayMessage(const char* text, const char* iconFile, bool beep) {
   applyDisplayMessageState(trimmed + start, iconFile, beep);
 
   wsCountPocsag++;
-  wsPocsagLog[wsPocsagHead].ric = 0;
+  wsPocsagLog[wsPocsagHead].ric = ric;
   strncpy(wsPocsagLog[wsPocsagHead].msg, pocsagMsg, POCSAG_MSG_MAX_LEN);
   wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
+  { struct tm _t; if (getLocalTime(&_t)) snprintf(wsPocsagLog[wsPocsagHead].ts, 9, "%02d:%02d:%02d", _t.tm_hour, _t.tm_min, _t.tm_sec); else wsPocsagLog[wsPocsagHead].ts[0] = '\0'; }
   wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
   if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
 
@@ -228,6 +229,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
     wsPocsagLog[wsPocsagHead].ric = pkt.ric;
     strncpy(wsPocsagLog[wsPocsagHead].msg, pkt.message, POCSAG_MSG_MAX_LEN);
     wsPocsagLog[wsPocsagHead].msg[POCSAG_MSG_MAX_LEN] = '\0';
+    { struct tm _t; if (getLocalTime(&_t)) snprintf(wsPocsagLog[wsPocsagHead].ts, 9, "%02d:%02d:%02d", _t.tm_hour, _t.tm_min, _t.tm_sec); else wsPocsagLog[wsPocsagHead].ts[0] = '\0'; }
     wsPocsagHead = (wsPocsagHead + 1) % POCSAG_LOG_SIZE;
     if (wsPocsagFill < POCSAG_LOG_SIZE) wsPocsagFill++;
     LOG("[RX-POCSAG #%lu] RIC=%-10lu  enc=%-7s  msg='%s'\n",

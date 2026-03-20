@@ -60,7 +60,7 @@ void registerDisplayHandlers() {
       safe[si] = '\0';
       if (i > 0) lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, ",");
       lp += snprintf(logBuf + lp, sizeof(logBuf) - lp,
-        "{\"ric\":%lu,\"msg\":\"%s\"}", (unsigned long)wsPocsagLog[idx].ric, safe);
+        "{\"ric\":%lu,\"msg\":\"%s\",\"ts\":\"%s\"}", (unsigned long)wsPocsagLog[idx].ric, safe, wsPocsagLog[idx].ts);
     }
     lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "]");
 
@@ -168,9 +168,9 @@ void registerDisplayHandlers() {
   });
 
   webServer.on("/api/icons", HTTP_GET, []() {
-    char buf[192];
-    snprintf(buf, sizeof(buf), "{\"temp\":\"%s\",\"hum\":\"%s\",\"bat\":\"%s\",\"poc\":\"%s\"}",
-      iconTempFile, iconHumFile, iconBatFile, iconPocsagFile);
+    char buf[256];
+    snprintf(buf, sizeof(buf), "{\"temp\":\"%s\",\"hum\":\"%s\",\"bat\":\"%s\",\"poc\":\"%s\",\"hass\":\"%s\",\"web\":\"%s\"}",
+      iconTempFile, iconHumFile, iconBatFile, iconPocsagFile, iconHassFile, iconWebFile);
     webServer.send(200, "application/json", buf);
   });
 
@@ -196,6 +196,8 @@ void registerDisplayHandlers() {
     if (webServer.hasArg("hum_icon"))  { v = webServer.arg("hum_icon");  v.trim(); strncpy(iconHumFile,    v.c_str(), 31); iconHumFile[31]    = '\0'; }
     if (webServer.hasArg("bat_icon"))  { v = webServer.arg("bat_icon");  v.trim(); strncpy(iconBatFile,    v.c_str(), 31); iconBatFile[31]    = '\0'; }
     if (webServer.hasArg("poc_icon"))  { v = webServer.arg("poc_icon");  v.trim(); strncpy(iconPocsagFile, v.c_str(), 31); iconPocsagFile[31] = '\0'; }
+    if (webServer.hasArg("hass_icon")) { v = webServer.arg("hass_icon"); v.trim(); strncpy(iconHassFile,   v.c_str(), 31); iconHassFile[31]   = '\0'; }
+    if (webServer.hasArg("web_icon"))  { v = webServer.arg("web_icon");  v.trim(); strncpy(iconWebFile,    v.c_str(), 31); iconWebFile[31]    = '\0'; }
     _gifCloseIfOpen();  // force reload with new path on next frame
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
@@ -256,8 +258,10 @@ void registerDisplayHandlers() {
       webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"text required\"}");
       return;
     }
-    const char* iconPtr = icon.length() ? icon.c_str() : nullptr;
-    if (!injectDisplayMessage(text.c_str(), iconPtr, beep)) {
+    const char* iconPtr = icon.length() ? icon.c_str()
+                        : iconWebFile[0]  ? iconWebFile
+                        : iconPocsagFile[0] ? iconPocsagFile : nullptr;
+    if (!injectDisplayMessage(text.c_str(), iconPtr, beep, 1337)) {
       webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid message\"}");
       return;
     }

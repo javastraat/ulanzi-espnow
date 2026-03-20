@@ -147,6 +147,8 @@ void loadSettings() {
   { String s = p.getString("icon_hum",  "");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
   { String s = p.getString("icon_bat",  "");  s.trim(); strncpy(iconBatFile,    s.c_str(), 31); iconBatFile[31]    = '\0'; }
   { String s = p.getString("icon_poc",  "");  s.trim(); strncpy(iconPocsagFile, s.c_str(), 31); iconPocsagFile[31] = '\0'; }
+  { String s = p.getString("icon_hass", "");  s.trim(); strncpy(iconHassFile,   s.c_str(), 31); iconHassFile[31]   = '\0'; }
+  { String s = p.getString("icon_web",  "");  s.trim(); strncpy(iconWebFile,    s.c_str(), 31); iconWebFile[31]    = '\0'; }
   // Screensaver
   screensaverEnabled    = p.getBool   ("scr_en",      false);
   screensaverTimeoutSec = p.getUShort ("scr_timeout", 60);
@@ -226,6 +228,8 @@ void saveSettings() {
   p.putString("icon_hum",  iconHumFile);
   p.putString("icon_bat",  iconBatFile);
   p.putString("icon_poc",  iconPocsagFile);
+  p.putString("icon_hass", iconHassFile);
+  p.putString("icon_web",  iconWebFile);
   // Screensaver
   p.putBool   ("scr_en",      screensaverEnabled);
   p.putUShort ("scr_timeout", screensaverTimeoutSec);

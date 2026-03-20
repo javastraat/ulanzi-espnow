@@ -639,7 +639,10 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     }
     text.trim();
     icon.trim();
-    if (text.length() && injectDisplayMessage(text.c_str(), icon.length() ? icon.c_str() : nullptr, beep)) {
+    const char* mqttIconPtr = icon.length() ? icon.c_str()
+                            : iconHassFile[0]   ? iconHassFile
+                            : iconPocsagFile[0] ? iconPocsagFile : nullptr;
+    if (text.length() && injectDisplayMessage(text.c_str(), mqttIconPtr, beep, 4277)) {
       LOG("[MQTT] display_message injected\n");
     } else {
       LOG("[MQTT] display_message ignored (empty/invalid)\n");

@@ -70,6 +70,8 @@ char iconTempFile[32]   = "";
 char iconHumFile[32]    = "";
 char iconBatFile[32]    = "";
 char iconPocsagFile[32] = "";
+char iconHassFile[32]   = "";
+char iconWebFile[32]    = "";
 
 // POCSAG display state
 #if RECV_POCSAG
