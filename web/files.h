@@ -113,9 +113,9 @@ static const char PAGE_FILES[] PROGMEM =
     </div>
   </div>
 
-  <!-- Icon assignments -->
+  <!-- System icons -->
   <div class="card">
-    <h3>Icons</h3>
+    <h3>System Icons</h3>
     <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span class="metric-label">Temp</span>
@@ -148,7 +148,7 @@ static const char PAGE_FILES[] PROGMEM =
                        border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
       </div>
     </div>
-    <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
+    <div style="padding:8px 0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span class="metric-label">Battery</span>
         <img id="prev-bat" src="" alt="" style="height:24px;width:auto;image-rendering:pixelated;border-radius:2px;display:none">
@@ -164,6 +164,19 @@ static const char PAGE_FILES[] PROGMEM =
                        border-radius:4px;cursor:pointer;font-size:.8em;flex-shrink:0">Show</button>
       </div>
     </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
+      <span id="icon-assign-status" style="font-size:.82em;color:var(--text-muted)"></span>
+      <button onclick="saveIcons()"
+              style="background:#00bcd4;color:#000;border:none;padding:6px 18px;
+                     border-radius:4px;cursor:pointer;font-weight:bold;font-size:.88em">
+        Save Icons
+      </button>
+    </div>
+  </div>
+
+  <!-- Message icons -->
+  <div class="card">
+    <h3>Message Icons</h3>
     <div style="padding:8px 0;border-bottom:1px solid var(--border-color)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span class="metric-label">ESP-Now</span>
@@ -216,7 +229,7 @@ static const char PAGE_FILES[] PROGMEM =
       No icons found in /icons/ — upload one using the downloader above or the file browser above.
     </div>
     <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px">
-      <span id="icon-assign-status" style="font-size:.82em;color:var(--text-muted)"></span>
+      <span id="icon-msg-status" style="font-size:.82em;color:var(--text-muted)"></span>
       <button onclick="saveIcons()"
               style="background:#00bcd4;color:#000;border:none;padding:6px 18px;
                      border-radius:4px;cursor:pointer;font-weight:bold;font-size:.88em">
@@ -512,9 +525,11 @@ function saveIcons(){
           +'&web_icon='+encodeURIComponent(document.getElementById('icon-web').value);
   fetch('/api/icons',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
   .then(function(r){return r.json();}).then(function(d){
-    var s=document.getElementById('icon-assign-status');
-    s.textContent=d.ok?'Saved':'Error';s.style.color=d.ok?'#28a745':'#dc3545';
-    setTimeout(function(){s.textContent='';},2500);
+    ['icon-assign-status','icon-msg-status'].forEach(function(id){
+      var s=document.getElementById(id);
+      s.textContent=d.ok?'Saved':'Error';s.style.color=d.ok?'#28a745':'#dc3545';
+      setTimeout(function(){s.textContent='';},2500);
+    });
   }).catch(function(){});
 }
 function loadIcons(){
