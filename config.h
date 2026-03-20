@@ -9,9 +9,9 @@
 
 
 // ============================================================
-// WiFi — connect to the same router as the MMDVM hotspot
-// (ensures ESP-NOW uses the correct channel)
-// Leave SSID empty "" to skip WiFi and use SoftAP only.
+// WiFi — default credentials for slot 1 (first boot / NVS not set).
+// Up to 6 networks can be configured via the web UI (/wifi).
+// If none connect, the clock starts a SoftAP for configuration.
 // ============================================================
 #define WIFI_SSID     "TechInc"
 #define WIFI_PASSWORD "itoldyoualready"

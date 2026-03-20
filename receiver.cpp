@@ -209,23 +209,40 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 
 static void setupReceiverNetwork() {
   WiFi.mode(WIFI_STA);
-  if (strlen(WIFI_SSID) > 0) {
+  bool connected = false;
+
+  for (int slot = 0; slot < WIFI_SLOT_COUNT && !connected; slot++) {
+    if (wifiSlotSsid[slot].length() == 0) continue;
     WiFi.setHostname(mdnsName);  // must be set before begin() for DHCP + mDNS
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    LOG("[WiFi] Connecting to %s ", WIFI_SSID);
-    unsigned long t = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t < 8000) {
+    WiFi.begin(wifiSlotSsid[slot].c_str(), wifiSlotPass[slot].c_str());
+    LOG("[WiFi] Slot %d (%s) ", slot + 1, wifiSlotSsid[slot].c_str());
+    unsigned long t       = millis();
+    unsigned long timeout = (unsigned long)wifiMaxRetries * 500UL;
+    while (WiFi.status() != WL_CONNECTED && millis() - t < timeout) {
       delay(250); LOG(".");
     }
     if (WiFi.status() == WL_CONNECTED) {
+      connected = true;
       WiFi.setSleep(false);  // prevent WiFi power-save pauses from glitching RMT/WS2812B
       LOG("\n[WiFi] Connected: %s  channel: %d\n",
         WiFi.localIP().toString().c_str(), WiFi.channel());
-      setupOTA();            // ArduinoOTA + WebServer (in web_server.cpp)
     } else {
-      LOG("\n[WiFi] Not connected\n");
-      WiFi.disconnect();
+      LOG("\n[WiFi] Slot %d failed\n", slot + 1);
+      WiFi.disconnect(true);
+      delay(200);
     }
+  }
+
+  if (connected) {
+    softAPActive = false;
+    setupOTA();    // ArduinoOTA + mDNS + WebServer (in web_server.cpp)
+  } else {
+    LOG("[WiFi] All slots failed — starting SoftAP: %s\n", wifiApSsid.c_str());
+    WiFi.mode(WIFI_AP_STA);  // AP_STA keeps STA interface alive for ESP-NOW
+    WiFi.softAP(wifiApSsid.c_str(), wifiApPassword.c_str(), wifiApChannel);
+    softAPActive = true;
+    LOG("[WiFi] SoftAP started — IP: %s\n", WiFi.softAPIP().toString().c_str());
+    setupWebAP();  // WebServer only, no OTA/mDNS (in web_server.cpp)
   }
 }
 

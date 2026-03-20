@@ -16,6 +16,8 @@
 #include "web_handlers_mqtt.h"
 #include "web_handlers_system.h"
 #include "web_handlers_espnow.h"
+#include "web_handlers_wifi.h"
+#include "web/wifi.h"
 
 // ── Web + OTA task (Core 0) ───────────────────────────────────────────────────
 
@@ -60,6 +62,10 @@ static void setupWebServer() {
     webServer.send_P(200, "text/html", PAGE_ESPNOW);
   });
 
+  webServer.on("/wifi", HTTP_GET, []() {
+    webServer.send(200, "text/html", getWifiPageHTML());
+  });
+
   // ── Favicon / PWA assets ───────────────────────────────────────────────────
 
   webServer.on("/favicon.ico", []() {
@@ -91,9 +97,22 @@ static void setupWebServer() {
   registerMqttHandlers();
   registerSystemHandlers();
   registerEspNowHandlers();
+  registerWifiHandlers();
 
   webServer.begin();
-  LOG("[WEB] Started at http://%s/\n", WiFi.localIP().toString().c_str());
+  String ip = WiFi.isConnected() ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+  LOG("[WEB] Started at http://%s/\n", ip.c_str());
+}
+
+// ── SoftAP-only web server (no OTA/mDNS) ─────────────────────────────────────
+
+void setupWebAP() {
+  // SoftAP mode: OTA and mDNS work fine for any device connected to the AP.
+  // Reuse full setupOTA() — the web server, OTA and mDNS all work on the
+  // 192.168.4.x subnet that the AP creates.
+  setupOTA();
+  LOG("[WEB] AP mode — connect to '%s' and go to http://%s/wifi\n",
+    WiFi.softAPSSID().c_str(), WiFi.softAPIP().toString().c_str());
 }
 
 // ── OTA + mDNS setup ─────────────────────────────────────────────────────────

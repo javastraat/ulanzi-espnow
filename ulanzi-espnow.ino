@@ -43,6 +43,16 @@
 
 CRGB leds[NUM_LEDS];
 
+// WiFi multi-slot + SoftAP
+String  wifiSlotLabel[WIFI_SLOT_COUNT];
+String  wifiSlotSsid[WIFI_SLOT_COUNT];
+String  wifiSlotPass[WIFI_SLOT_COUNT];
+String  wifiApSsid     = "Ulanzi-AP";
+String  wifiApPassword = "ulanzi1234";
+uint8_t wifiApChannel  = 1;
+uint8_t wifiMaxRetries = 10;   // per-slot timeout = retries * 500 ms  (10 → 5 s)
+bool    softAPActive   = false;
+
 // Display state
 DisplayMode   displayMode     = MODE_CLOCK;
 unsigned long modeActiveUntil = 0;
@@ -210,6 +220,7 @@ void setup() {
   setupDisplay();
   setupFilesystem();
   loadSettings();                     // load NVS before boot screen so bootName/brightness are applied
+  loadWifiSlots();                    // load WiFi slots + AP config from NVS
   FastLED.setBrightness(currentBrightness);  // apply saved brightness before first display tick
   drawBootScreen();
   setupRTC();
@@ -217,10 +228,15 @@ void setup() {
   setupBuzzer();
   setupReceiver();// connects WiFi → calls setupOTA() → starts webServer
 
-  // Arm IP scroll if WiFi connected (plays as first display in loop())
+  // Arm IP scroll if WiFi connected, or show AP name so user knows where to connect
   if (WiFi.status() == WL_CONNECTED) {
     snprintf(ipScrollMsg, sizeof(ipScrollMsg), "IP:%s",
              WiFi.localIP().toString().c_str());
+  } else if (softAPActive) {
+    snprintf(ipScrollMsg, sizeof(ipScrollMsg), "AP:%s",
+             WiFi.softAPIP().toString().c_str());
+  }
+  if (WiFi.status() == WL_CONNECTED || softAPActive) {
     ipScrollLen  = strlen(ipScrollMsg);
     ipScrollX    = MATRIX_WIDTH;
     ipScrollPass = 0;

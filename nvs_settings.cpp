@@ -3,6 +3,70 @@
 #include "globals.h"
 #include <Preferences.h>
 
+// ── WiFi slots + AP (namespace "wifi") ───────────────────────────────────────
+
+void loadWifiSlots() {
+  Preferences p;
+  p.begin("wifi", true);
+  for (int i = 0; i < WIFI_SLOT_COUNT; i++) {
+    char lk[4], sk[4], pk[4];
+    snprintf(lk, sizeof(lk), "l%d", i);
+    snprintf(sk, sizeof(sk), "s%d", i);
+    snprintf(pk, sizeof(pk), "p%d", i);
+    // Slot 0 defaults to config.h credentials; others default empty
+    wifiSlotLabel[i] = p.getString(lk, i == 0 ? "Home" : "");
+    wifiSlotSsid[i]  = p.getString(sk, i == 0 ? WIFI_SSID : "");
+    wifiSlotPass[i]  = p.getString(pk, i == 0 ? WIFI_PASSWORD : "");
+  }
+  wifiApSsid     = p.getString("ap_ssid", "Ulanzi-AP");
+  wifiApPassword = p.getString("ap_pass",  "ulanzi1234");
+  wifiApChannel  = p.getUChar ("ap_ch",    1);
+  wifiMaxRetries = p.getUChar ("retries",  10);
+  p.end();
+}
+
+void saveWifiSlot(int slot, const String& label, const String& ssid, const String& pass) {
+  if (slot < 0 || slot >= WIFI_SLOT_COUNT) return;
+  wifiSlotLabel[slot] = label;
+  wifiSlotSsid[slot]  = ssid;
+  wifiSlotPass[slot]  = pass;
+  Preferences p;
+  p.begin("wifi", false);
+  char lk[4], sk[4], pk[4];
+  snprintf(lk, sizeof(lk), "l%d", slot);
+  snprintf(sk, sizeof(sk), "s%d", slot);
+  snprintf(pk, sizeof(pk), "p%d", slot);
+  p.putString(lk, label);
+  p.putString(sk, ssid);
+  p.putString(pk, pass);
+  p.end();
+}
+
+void resetWifiSlot(int slot) {
+  String defLabel = (slot == 0) ? "Home" : "";
+  String defSsid  = (slot == 0) ? WIFI_SSID : "";
+  String defPass  = (slot == 0) ? WIFI_PASSWORD : "";
+  saveWifiSlot(slot, defLabel, defSsid, defPass);
+}
+
+void saveWifiApSettings() {
+  Preferences p;
+  p.begin("wifi", false);
+  p.putString("ap_ssid", wifiApSsid);
+  p.putString("ap_pass",  wifiApPassword);
+  p.putUChar ("ap_ch",    wifiApChannel);
+  p.putUChar ("retries",  wifiMaxRetries);
+  p.end();
+}
+
+void resetWifiApSettings() {
+  wifiApSsid     = "Ulanzi-AP";
+  wifiApPassword = "ulanzi1234";
+  wifiApChannel  = 1;
+  wifiMaxRetries = 10;
+  saveWifiApSettings();
+}
+
 static inline uint32_t packCRGB(CRGB c)       { return ((uint32_t)c.r<<16)|((uint32_t)c.g<<8)|c.b; }
 static inline CRGB     unpackCRGB(uint32_t v) { return CRGB((v>>16)&0xFF,(v>>8)&0xFF,v&0xFF); }
 

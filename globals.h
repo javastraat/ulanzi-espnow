@@ -138,6 +138,20 @@ extern bool          mdnsStarted;
 extern bool          debugLogEnabled;  // NVS: "debug_log" — enables DLOG() output
 extern int           otaLastBarW;
 
+// ── WiFi multi-slot + SoftAP ──────────────────────────────────────────────────
+
+#define WIFI_SLOT_COUNT 6
+
+extern String  wifiSlotLabel[WIFI_SLOT_COUNT];
+extern String  wifiSlotSsid[WIFI_SLOT_COUNT];
+extern String  wifiSlotPass[WIFI_SLOT_COUNT];
+
+extern String  wifiApSsid;
+extern String  wifiApPassword;
+extern uint8_t wifiApChannel;
+extern uint8_t wifiMaxRetries;   // per-slot: timeout = retries * 500 ms
+extern bool    softAPActive;
+
 // ── IP address scroll ─────────────────────────────────────────────────────────
 
 extern bool          ipScrollActive;
