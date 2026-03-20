@@ -18,6 +18,7 @@
 #include "web_handlers_espnow.h"
 #include "web_handlers_wifi.h"
 #include "web/wifi.h"
+#include "web/firmware.h"
 
 // ── Web + OTA task (Core 0) ───────────────────────────────────────────────────
 
@@ -64,6 +65,10 @@ static void setupWebServer() {
 
   webServer.on("/wifi", HTTP_GET, []() {
     webServer.send(200, "text/html", getWifiPageHTML());
+  });
+
+  webServer.on("/firmware", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_FIRMWARE);
   });
 
   // ── Favicon / PWA assets ───────────────────────────────────────────────────

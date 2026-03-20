@@ -6,6 +6,8 @@
 #include <Preferences.h>
 #include "mqtt.h"
 #include <esp_ota_ops.h>
+#include <esp_partition.h>
+#include <Update.h>
 extern "C" {
 #include <nvs_flash.h>
 #include <nvs.h>
@@ -132,6 +134,108 @@ void registerSystemHandlers() {
     // MDNS.end()/begin() is unreliable on ESP32 — reboot applies the new name
     // via WiFi.setHostname() + MDNS.begin() from a clean state.
     webServer.send(200, "application/json", "{\"ok\":true,\"reboot\":true}");
+  });
+
+  // ── Firmware info (version, build, OTA status, partition) ────────────────
+  webServer.on("/api/firmware-info", HTTP_GET, []() {
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    const esp_partition_t* boot    = esp_ota_get_boot_partition();
+    const esp_partition_t* app0    = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+    const esp_partition_t* app1    = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+    String md5 = ESP.getSketchMD5();
+    char buf[640];
+    snprintf(buf, sizeof(buf),
+      "{"
+      "\"version\":\"%s\","
+      "\"build\":\"%s %s\","
+      "\"sketch_kb\":%u,"
+      "\"ota_kb\":%u,"
+      "\"partition\":\"%s\","
+      "\"md5\":\"%s\","
+      "\"ota_started\":%s,"
+      "\"ota_host\":\"%s\","
+      "\"ota_password\":%s,"
+      "\"part_running\":\"%s\","
+      "\"part_boot\":\"%s\","
+      "\"part_app0_kb\":%u,"
+      "\"part_app1_kb\":%u"
+      "}",
+      FIRMWARE_VERSION,
+      __DATE__, __TIME__,
+      ESP.getSketchSize() / 1024,
+      ESP.getFreeSketchSpace() / 1024,
+      running ? running->label : "unknown",
+      md5.c_str(),
+      otaStarted ? "true" : "false",
+      mdnsName,
+      strlen(OTA_PASSWORD) > 0 ? "true" : "false",
+      running ? running->label : "unknown",
+      boot    ? boot->label    : "unknown",
+      app0    ? app0->size / 1024 : 0,
+      app1    ? app1->size / 1024 : 0
+    );
+    webServer.send(200, "application/json", buf);
+  });
+
+  // ── Web OTA upload — receives a .bin file and flashes it ─────────────────
+  webServer.on("/api/ota-upload", HTTP_POST,
+    []() {
+      if (Update.hasError()) {
+        String err = String(Update.errorString());
+        webServer.send(500, "application/json",
+          "{\"ok\":false,\"error\":\"" + err + "\"}");
+      } else {
+        webServer.send(200, "application/json", "{\"ok\":true}");
+        delay(300);
+        ESP.restart();
+      }
+    },
+    []() {
+      HTTPUpload& up = webServer.upload();
+      if (up.status == UPLOAD_FILE_START) {
+        LOG("[OTA-WEB] Start: %s\n", up.filename.c_str());
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+          LOG("[OTA-WEB] begin() failed: %s\n", Update.errorString());
+        }
+      } else if (up.status == UPLOAD_FILE_WRITE) {
+        if (Update.write(up.buf, up.currentSize) != up.currentSize) {
+          LOG("[OTA-WEB] write error\n");
+        }
+      } else if (up.status == UPLOAD_FILE_END) {
+        if (Update.end(true)) {
+          LOG("[OTA-WEB] Done: %u bytes\n", up.totalSize);
+        } else {
+          LOG("[OTA-WEB] end() failed: %s\n", Update.errorString());
+        }
+      }
+    }
+  );
+
+  // ── Partition switch (for rollback) ──────────────────────────────────────
+  webServer.on("/api/partition-switch", HTTP_POST, []() {
+    String p = webServer.arg("partition");
+    esp_partition_subtype_t sub =
+      (p == "app0") ? ESP_PARTITION_SUBTYPE_APP_OTA_0 :
+      (p == "app1") ? ESP_PARTITION_SUBTYPE_APP_OTA_1 :
+                      (esp_partition_subtype_t)0xFF;
+    if (sub == (esp_partition_subtype_t)0xFF) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid partition\"}");
+      return;
+    }
+    const esp_partition_t* target =
+      esp_partition_find_first(ESP_PARTITION_TYPE_APP, sub, NULL);
+    if (!target) {
+      webServer.send(404, "application/json", "{\"ok\":false,\"error\":\"Partition not found\"}");
+      return;
+    }
+    esp_err_t err = esp_ota_set_boot_partition(target);
+    if (err != ESP_OK) {
+      webServer.send(500, "application/json", "{\"ok\":false,\"error\":\"Set boot failed\"}");
+      return;
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+    delay(300);
+    ESP.restart();
   });
 
   webServer.on("/api/factory-reset", HTTP_POST, []() {

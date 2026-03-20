@@ -26,6 +26,7 @@
       "<a href=\"/files\" class=\"nav-more-item\">Files</a>" \
       "<a href=\"/info\" class=\"nav-more-item\">Info</a>" \
       "<a href=\"/serial\" class=\"nav-more-item\">Serial</a>" \
+      "<a href=\"/firmware\" class=\"nav-more-item\">Firmware</a>" \
     "</div>" \
   "</div>" \
   "<button class=\"nav-live\" onclick=\"showLive()\">&#9654; LIVE</button>" \
