@@ -94,6 +94,7 @@ void loadSettings() {
   autoBrightnessEnabled = p.getBool  ("auto_br",    true);
   currentBrightness     = p.getUChar ("brightness", LED_BRIGHTNESS);
   brightnessMode        = (BrightnessMode)p.getUChar("br_mode", BMODE_AUTO);
+  clockFace             = p.getUChar ("clk_face",   0);
   // Buzzer
   buzzerBootEnabled     = p.getBool ("buz_boot_en",  true);
   buzzerBootVolume      = p.getUChar("buz_boot_vol", BUZZER_VOL_BOOT);
@@ -182,6 +183,7 @@ void saveSettings() {
   p.putBool  ("auto_br",    autoBrightnessEnabled);
   p.putUChar ("brightness", currentBrightness);
   p.putUChar ("br_mode",    (uint8_t)brightnessMode);
+  p.putUChar ("clk_face",   clockFace);
   // Buzzer
   p.putBool ("buz_boot_en",  buzzerBootEnabled);
   p.putUChar("buz_boot_vol", buzzerBootVolume);

@@ -54,6 +54,9 @@ extern CRGB leds[NUM_LEDS];
 
 enum DisplayMode : uint8_t { MODE_CLOCK = 0, MODE_TEMP, MODE_HUMIDITY, MODE_BATTERY, MODE_COUNT };
 
+// ── Clock face (0-4, see clockface.h) ────────────────────────────────────────
+extern uint8_t clockFace;
+
 #define MODE_TIMEOUT_MS  10000
 
 extern DisplayMode   displayMode;

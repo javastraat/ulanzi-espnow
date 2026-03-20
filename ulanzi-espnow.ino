@@ -59,6 +59,7 @@ bool    softAPActive   = false;
 // Display state
 DisplayMode   displayMode     = MODE_CLOCK;
 unsigned long modeActiveUntil = 0;
+uint8_t       clockFace       = 0;   // NVS: "clk_face" — see clockface.h
 
 // Device name — shown on boot screen (max 8 chars, uppercase)
 char bootName[9]  = "ULANZI";

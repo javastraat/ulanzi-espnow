@@ -2,6 +2,7 @@
 // and the main display loop.
 #include "display.h"
 #include "globals.h"
+#include "clockface.h"
 #include "menu.h"
 #include "mqtt.h"
 #include <AnimatedGIF.h>
@@ -942,7 +943,7 @@ void loopDisplay() {
   if (!getLocalTime(&t)) return;
 
   FastLED.clear();
-  drawTime(t.tm_hour, t.tm_min, t.tm_sec, colorClock);
+  drawClockFace(t);
   drawIndicators();
   FastLED.show();
 }

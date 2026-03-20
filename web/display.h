@@ -92,6 +92,33 @@ static const char PAGE_DISPLAY[] PROGMEM =
     </div>
   </div>
 
+  <!-- Clock Face -->
+  <div class="card">
+    <h3>Clock Face</h3>
+    <div style="display:flex;flex-direction:column;gap:6px" id="cf-list">
+      <button id="cf-0" class="bp" onclick="setFace(0)" style="text-align:left;padding:7px 10px">
+        <strong>0 — Classic</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS centred</span>
+      </button>
+      <button id="cf-1" class="bp" onclick="setFace(1)" style="text-align:left;padding:7px 10px">
+        <strong>1 — Big</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM large digits</span>
+      </button>
+      <button id="cf-2" class="bp" onclick="setFace(2)" style="text-align:left;padding:7px 10px">
+        <strong>2 — Calendar</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">Date box + HH:MM</span>
+      </button>
+      <button id="cf-3" class="bp" onclick="setFace(3)" style="text-align:left;padding:7px 10px">
+        <strong>3 — Weekday</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM:SS + day dots</span>
+      </button>
+      <button id="cf-4" class="bp" onclick="setFace(4)" style="text-align:left;padding:7px 10px">
+        <strong>4 — Binary</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">H/M/S as bit rows</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Screensaver -->
   <div class="card">
     <h3>Screensaver</h3>
@@ -374,6 +401,23 @@ function setIndicators(val){
     body:'enabled='+(val?1:0)
   }).catch(function(){});
 }
+var _curFace=-1;
+function updateFaceButtons(f){
+  _curFace=f;
+  for(var i=0;i<5;i++){
+    var b=document.getElementById('cf-'+i);
+    if(!b)continue;
+    b.style.background=(i===f)?'#00bcd4':'#444';
+    b.style.color=(i===f)?'#000':'#fff';
+  }
+}
+function setFace(f){
+  updateFaceButtons(f);
+  fetch('/api/clockface',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'face='+f
+  }).catch(function(){});
+}
 (function init(){
   fetch('/api/status').then(function(r){return r.json();}).then(function(d){
     document.getElementById('h1').textContent=d.hostname;
@@ -411,6 +455,9 @@ function setIndicators(val){
     if(d.b_lo)document.getElementById('b-col-lo').value=d.b_lo;
     if(d.b_mid)document.getElementById('b-col-mid').value=d.b_mid;
     if(d.b_hi)document.getElementById('b-col-hi').value=d.b_hi;
+  }).catch(function(){});
+  fetch('/api/clockface').then(function(r){return r.json();}).then(function(d){
+    updateFaceButtons(d.face||0);
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;

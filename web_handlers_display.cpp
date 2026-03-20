@@ -3,6 +3,7 @@
 #include "web_handlers_display.h"
 #include "globals.h"
 #include "display.h"
+#include "clockface.h"
 #include "buzzer.h"
 #include "nvs_settings.h"
 #include "mqtt.h"
@@ -383,4 +384,22 @@ void registerDisplayHandlers() {
   webServer.on("/api/btn/left",   HTTP_POST, []() { queueButtonPress(0, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
   webServer.on("/api/btn/middle", HTTP_POST, []() { queueButtonPress(1, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
   webServer.on("/api/btn/right",  HTTP_POST, []() { queueButtonPress(2, false); webServer.send(200, "application/json", "{\"ok\":true}"); });
+
+  // ── Clock face ─────────────────────────────────────────────────────────────
+  webServer.on("/api/clockface", HTTP_GET, []() {
+    char buf[20];
+    snprintf(buf, sizeof(buf), "{\"face\":%d}", clockFace);
+    webServer.send(200, "application/json", buf);
+  });
+  webServer.on("/api/clockface", HTTP_POST, []() {
+    String v = webServer.arg("face");
+    if (v.length()) {
+      int f = v.toInt();
+      if (f >= 0 && f < CLOCK_FACE_COUNT) {
+        clockFace = (uint8_t)f;
+        saveSettings();
+      }
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
 }
