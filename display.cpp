@@ -563,21 +563,8 @@ void loopAutoRotate() {
   }
 #endif
 
-  // Apps phase: show each app exactly once per cycle, back-to-back (no interval between them).
-  // _appsRemaining counts how many apps are left in this phase.
-  static int _appsRemaining = 0;
-
   if (customAppIsActive()) {
     lastRotate = millis();
-    return;
-  }
-
-  // While in apps phase, advance immediately — no interval wait between apps
-  if (_appsRemaining > 0) {
-    _appsRemaining--;
-    customAppAdvance();
-    if (customAppIsActive()) return;  // next app started
-    // App wasn't available (expired?), try to drain remaining
     return;
   }
 
@@ -594,17 +581,15 @@ void loopAutoRotate() {
   }
   displayMode = next;
 
-  // If we wrapped back to clock, run all custom apps first
+  // If we wrapped back to clock, run all custom apps first (back-to-back, no gap).
+  // _phaseRemaining in custom_apps.cpp drives the auto-advance on expiry.
   if (next == MODE_CLOCK) {
-    // Count how many apps are enabled and visible
     int cnt = 0;
     for (int i = 0; i < CUSTOM_APP_SLOTS; i++)
       if (customApps[i].enabled && customApps[i].show) cnt++;
     if (cnt > 0) {
-      _appsRemaining = cnt - 1;  // -1 because we start the first one now
-      customAppAdvance();
-      if (customAppIsActive()) return;
-      _appsRemaining = 0;  // no app available right now
+      customAppSetPhaseRemaining(cnt - 1);  // loopCustomApp auto-advances on expiry
+      customAppAdvance();                   // start first app
     }
   }
 }

@@ -23,6 +23,7 @@ uint8_t   customAppCount = 0;
 static int           _activeSlot          = -1;   // currently displaying (-1 = none)
 static unsigned long _slotUntil           = 0;    // when duration expires
 static int           _rr                  = 0;    // round-robin index
+static int           _phaseRemaining      = 0;    // apps left in current phase (set by display.cpp)
 
 // Redraw timing for static and scroll modes
 static unsigned long _nextStaticDraw      = 0;
@@ -342,6 +343,8 @@ void customAppListJson(char* buf, int len) {
 
 bool customAppIsActive() { return _activeSlot >= 0; }
 
+void customAppSetPhaseRemaining(int n) { _phaseRemaining = n; }
+
 const char* customAppScreenName() {
   if (_activeSlot < 0) return "app";
   snprintf(_screenNameBuf, sizeof(_screenNameBuf), "app:%s", customApps[_activeSlot].name);
@@ -391,11 +394,13 @@ bool loopCustomApp() {
     char nameBuf[CA_NAME_LEN]; strncpy(nameBuf, app.name, CA_NAME_LEN - 1); nameBuf[CA_NAME_LEN-1]='\0';
     customAppDelete(nameBuf);
     _activeSlot = -1;
+    if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
     return false;
   }
-  // Duration expiry
+  // Duration expiry — if more apps are queued in this phase, advance immediately (no flash)
   if (_slotUntil > 0 && millis() >= _slotUntil) {
     _activeSlot = -1;
+    if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
     return false;
   }
 
@@ -482,6 +487,7 @@ bool loopCustomApp() {
       if (!app.repeat) {
         // One pass completed — expire this slot
         _activeSlot = -1;
+        if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
         return false;
       }
       app.scrollX = MATRIX_WIDTH;

@@ -43,6 +43,7 @@ void        customAppAdvance();         // called from loopAutoRotate
 void        customAppSetFromJson(const char* name, const String& json);
 void        customAppDelete(const char* name);
 void        customAppToggleShow(const char* name); // flip show flag + save
+void        customAppSetPhaseRemaining(int n);     // how many more apps follow in this phase
 void        customAppListJson(char* buf, int len);
 const char* customAppScreenName();      // for getScreenName()
 
