@@ -478,7 +478,7 @@ void registerDisplayHandlers() {
   });
 
   webServer.on("/api/transition", HTTP_POST, []() {
-    if (webServer.hasArg("effect")) transEffect  = (uint8_t)constrain(webServer.arg("effect").toInt(), 0, 9);
+    if (webServer.hasArg("effect")) transEffect  = (uint8_t)constrain(webServer.arg("effect").toInt(), 0, 10);
     if (webServer.hasArg("speed"))  transSpeedMs = (uint16_t)constrain(webServer.arg("speed").toInt(), 100, 2000);
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");

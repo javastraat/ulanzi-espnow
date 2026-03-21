@@ -15,7 +15,8 @@
 #define TRANS_CURTAIN   6   // columns close from edges to centre
 #define TRANS_RIPPLE    7   // checkerboard dissolve to black
 #define TRANS_CROSSFADE 8   // pixel-by-pixel lerp old→new
-#define TRANS_RANDOM    9   // random choice from 1–8
+#define TRANS_PUSHDOWN  9   // new slides in from top, old pushed out bottom
+#define TRANS_RANDOM    10  // random choice from 1–9
 
 extern uint8_t  transEffect;    // NVS key "trans_eff"  default TRANS_FADE
 extern uint16_t transSpeedMs;   // NVS key "trans_spd"  default 400

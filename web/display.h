@@ -481,7 +481,7 @@ function saveScreens(){
     body:'screens='+mask
   }).catch(function(){});
 }
-var TRANS_EFFECTS=['None','Fade','Wipe','Slide','Blink','Reload','Curtain','Ripple','Crossfade','Random'];
+var TRANS_EFFECTS=['None','Fade','Wipe','Slide','Blink','Reload','Curtain','Ripple','Crossfade','Push Down','Random'];
 var _curTrans=1;
 function buildTransButtons(cur){
   _curTrans=cur;

@@ -31,6 +31,10 @@ static inline CRGB _sp(int x, int y) {
   int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
   return _snap[idx];
 }
+static inline CRGB _sp2(int x, int y) {
+  int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
+  return _snap2[idx];
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -42,9 +46,9 @@ void transitionBegin() {
 
   _effectNow = transEffect;
   if (_effectNow == TRANS_RANDOM)
-    _effectNow = (uint8_t)((millis() % 8) + 1);  // 1–8
+    _effectNow = (uint8_t)((millis() % 9) + 1);  // 1–9
 
-  _captureSkip = (_effectNow == TRANS_CROSSFADE);
+  _captureSkip = (_effectNow == TRANS_CROSSFADE || _effectNow == TRANS_PUSHDOWN);
   _captureNext = false;
   _active      = true;
   _startMs     = millis();
@@ -170,6 +174,16 @@ bool loopTransition() {
           setLED(x, y, c);
         }
       }
+      FastLED.show();
+      break;
+    }
+
+    // ── Push Down (new slides in from top, old exits bottom) ─────────────────
+    case TRANS_PUSHDOWN: {
+      int shift = (int)(p * (MATRIX_HEIGHT + 1));
+      for (int x = 0; x < MATRIX_WIDTH; x++)
+        for (int y = 0; y < MATRIX_HEIGHT; y++)
+          setLED(x, y, y < shift ? _sp2(x, y) : _sp(x, y - shift));
       FastLED.show();
       break;
     }
