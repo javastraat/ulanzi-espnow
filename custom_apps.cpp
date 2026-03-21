@@ -432,14 +432,16 @@ bool loopCustomApp() {
       if (tx != ICON_DRAW_FAILED) textX = tx; else gifDelay = 500;
     }
     _staticGifDelay = max(gifDelay, 50);
+    int textEndX = textX;
     if (textLen > 0) {
       int tW  = textLen * 4 - 1;
       int aW  = MATRIX_WIDTH - textX;
       int xo  = textX + max(0, (aW - tW) / 2);
       for (int i = 0; i < textLen; i++)
         drawChar(xo + i * 4, yo, resolvedText[i], app.color);
+      textEndX = xo + tW;
     }
-    drawIndicators();
+    if (MATRIX_WIDTH - textEndX >= 4) drawIndicators();
     FastLED.show();
     _nextStaticDraw = millis() + (unsigned long)_staticGifDelay;
 
