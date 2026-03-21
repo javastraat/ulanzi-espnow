@@ -11,6 +11,7 @@
 #include "custom_apps.h"
 #include "globals.h"
 #include "display.h"
+#include "transition.h"
 #include <LittleFS.h>
 
 // ── Global state ──────────────────────────────────────────────────────────────
@@ -395,12 +396,14 @@ bool loopCustomApp() {
     customAppDelete(nameBuf);
     _activeSlot = -1;
     if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
+    transitionBegin();  // last app → back to built-in
     return false;
   }
   // Duration expiry — if more apps are queued in this phase, advance immediately (no flash)
   if (_slotUntil > 0 && millis() >= _slotUntil) {
     _activeSlot = -1;
-    if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
+    if (_phaseRemaining > 0) { _phaseRemaining--; transitionBegin(); customAppAdvance(); return _activeSlot >= 0; }
+    transitionBegin();  // last app → back to built-in
     return false;
   }
 
@@ -487,7 +490,8 @@ bool loopCustomApp() {
       if (!app.repeat) {
         // One pass completed — expire this slot
         _activeSlot = -1;
-        if (_phaseRemaining > 0) { _phaseRemaining--; customAppAdvance(); return _activeSlot >= 0; }
+        if (_phaseRemaining > 0) { _phaseRemaining--; transitionBegin(); customAppAdvance(); return _activeSlot >= 0; }
+        transitionBegin();  // last app → back to built-in
         return false;
       }
       app.scrollX = MATRIX_WIDTH;

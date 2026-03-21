@@ -4,6 +4,7 @@
 #include "globals.h"
 #include "clockface.h"
 #include "custom_apps.h"
+#include "transition.h"
 #include "menu.h"
 #include "mqtt.h"
 #include <AnimatedGIF.h>
@@ -579,6 +580,7 @@ void loopAutoRotate() {
     bool screenEnabled = (rotateScreens & (1u << next)) != 0;
     if (screenEnabled && !sensorMissing) break;
   }
+  transitionBegin();   // snapshot current frame before new mode renders
   displayMode = next;
 
   // If we wrapped back to clock, run all custom apps first (back-to-back, no gap).
@@ -639,6 +641,7 @@ void loopDisplay() {
   if (otaInProgress) return;  // OTA owns the display — don't touch it
   if (isMenuActive())  return;  // menu draws its own content
   if (otaReadyMode) { drawUpdate(); return; }  // waiting for upload
+  if (loopTransition()) return;  // transition animation in progress
 
   // Log screen transitions
   {

@@ -1,6 +1,7 @@
 // nvs_settings.cpp — NVS Preferences: load and save all user-configurable settings.
 #include "nvs_settings.h"
 #include "globals.h"
+#include "transition.h"
 #include <Preferences.h>
 
 // ── WiFi slots + AP (namespace "wifi") ───────────────────────────────────────
@@ -103,9 +104,12 @@ void loadSettings() {
   buzzerClickEnabled    = p.getBool ("buz_clk_en",   true);
   buzzerClickVolume     = p.getUChar("buz_clk_vol",  BUZZER_VOL_CLICK);
   // Display rotation
-  autoRotateEnabled     = p.getBool ("rot_en",  false);
-  autoRotateIntervalSec = p.getUChar("rot_sec", 5);
-  rotateScreens         = p.getUChar("rot_screens", 0x0F);
+  autoRotateEnabled     = p.getBool  ("rot_en",  false);
+  autoRotateIntervalSec = p.getUChar ("rot_sec", 5);
+  rotateScreens         = p.getUChar ("rot_screens", 0x0F);
+  // Transitions
+  transEffect           = p.getUChar ("trans_eff", TRANS_FADE);
+  transSpeedMs          = p.getUShort("trans_spd", 400);
   // Device name + mDNS hostname
   // ArduinoOTA runtime settings
   otaEnabled = p.getBool("ota_en", true);
@@ -193,9 +197,12 @@ void saveSettings() {
   p.putBool ("buz_clk_en",   buzzerClickEnabled);
   p.putUChar("buz_clk_vol",  buzzerClickVolume);
   // Display rotation
-  p.putBool ("rot_en",  autoRotateEnabled);
-  p.putUChar("rot_sec", autoRotateIntervalSec);
-  p.putUChar("rot_screens", rotateScreens);
+  p.putBool  ("rot_en",      autoRotateEnabled);
+  p.putUChar ("rot_sec",     autoRotateIntervalSec);
+  p.putUChar ("rot_screens", rotateScreens);
+  // Transitions
+  p.putUChar ("trans_eff", transEffect);
+  p.putUShort("trans_spd", transSpeedMs);
   // ArduinoOTA runtime settings
   p.putBool  ("ota_en",   otaEnabled);
   p.putInt   ("ota_port", otaPort);

@@ -284,6 +284,27 @@ static const char PAGE_DISPLAY[] PROGMEM =
     </div>
   </div>
 
+  <!-- Transitions -->
+  <div class="card">
+    <h3>Transitions</h3>
+    <div style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">
+      Animated effect played between screens during auto-rotation.
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">Effect</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="trans-btns"></div>
+    </div>
+    <div>
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">
+        Speed: <span id="trans-speed-lbl">400</span> ms
+      </div>
+      <input type="range" id="trans-speed" min="100" max="1200" step="50" value="400"
+        style="width:100%"
+        oninput="document.getElementById('trans-speed-lbl').textContent=this.value"
+        onchange="saveTransition()">
+    </div>
+  </div>
+
   <!-- Custom Apps — rotation manager -->
   <div class="card">
     <h3>Custom Apps</h3>
@@ -460,6 +481,38 @@ function saveScreens(){
     body:'screens='+mask
   }).catch(function(){});
 }
+var TRANS_EFFECTS=['None','Fade','Wipe','Slide','Blink','Reload','Curtain','Ripple','Crossfade','Random'];
+var _curTrans=1;
+function buildTransButtons(cur){
+  _curTrans=cur;
+  var c=document.getElementById('trans-btns');
+  if(!c)return;
+  var html='';
+  TRANS_EFFECTS.forEach(function(name,i){
+    var active=(i===cur);
+    html+='<button class="bp" id="tb-'+i+'" onclick="setTrans('+i+')" style="padding:5px 10px;background:'+(active?'#00bcd4':'#444')+';color:'+(active?'#000':'#fff')+'">'+name+'</button>';
+  });
+  c.innerHTML=html;
+}
+function setTrans(idx){
+  _curTrans=idx;
+  buildTransButtons(idx);
+  saveTransition();
+}
+function saveTransition(){
+  var spd=document.getElementById('trans-speed').value;
+  fetch('/api/transition',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'effect='+_curTrans+'&speed='+spd
+  }).catch(function(){});
+}
+function loadTransition(){
+  fetch('/api/transition').then(function(r){return r.json();}).then(function(d){
+    buildTransButtons(d.effect||0);
+    var sl=document.getElementById('trans-speed');
+    if(sl){sl.value=d.speed||400;document.getElementById('trans-speed-lbl').textContent=sl.value;}
+  }).catch(function(){buildTransButtons(1);});
+}
 function loadCustomApps(){
   fetch('/api/custom_apps').then(function(r){return r.json();}).then(function(apps){
     var el=document.getElementById('ca-list');
@@ -581,6 +634,7 @@ function setFace(f){
       if(cb)cb.checked=!!(mask&(1<<i));
     }
   }).catch(function(){});
+  loadTransition();
   loadCustomApps();
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;
