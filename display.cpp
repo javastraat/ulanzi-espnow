@@ -563,25 +563,26 @@ void loopAutoRotate() {
   }
 #endif
 
-  // While a custom app is showing, keep resetting the timer so the full
-  // rotation interval starts fresh after the app ends.
+  // Apps phase: show each app exactly once per cycle, back-to-back (no interval between them).
+  // _appsRemaining counts how many apps are left in this phase.
+  static int _appsRemaining = 0;
+
   if (customAppIsActive()) {
     lastRotate = millis();
     return;
   }
 
+  // While in apps phase, advance immediately — no interval wait between apps
+  if (_appsRemaining > 0) {
+    _appsRemaining--;
+    customAppAdvance();
+    if (customAppIsActive()) return;  // next app started
+    // App wasn't available (expired?), try to drain remaining
+    return;
+  }
+
   if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
   lastRotate = millis();
-
-  // Apps phase: show all custom apps as a group after the last built-in mode,
-  // before wrapping back to clock.  Rotation: time → temp → hum → bat → app0 → app1 → ... → time
-  static bool _appsPhase = false;
-  if (_appsPhase) {
-    customAppAdvance();
-    if (customAppIsActive()) return;  // another app started
-    _appsPhase = false;               // all apps exhausted; displayMode is already MODE_CLOCK
-    return;                           // wait a full interval, then advance from clock
-  }
 
   // Find next built-in mode, skipping disabled screens and missing sensors
   DisplayMode next = displayMode;
@@ -593,12 +594,18 @@ void loopAutoRotate() {
   }
   displayMode = next;
 
-  // If we wrapped back to clock and there are custom apps, run them first
-  if (next == MODE_CLOCK && customAppCount > 0) {
-    _appsPhase = true;
-    customAppAdvance();
-    if (customAppIsActive()) return;  // first app started
-    _appsPhase = false;               // no apps available right now — stay at clock
+  // If we wrapped back to clock, run all custom apps first
+  if (next == MODE_CLOCK) {
+    // Count how many apps are enabled and visible
+    int cnt = 0;
+    for (int i = 0; i < CUSTOM_APP_SLOTS; i++)
+      if (customApps[i].enabled && customApps[i].show) cnt++;
+    if (cnt > 0) {
+      _appsRemaining = cnt - 1;  // -1 because we start the first one now
+      customAppAdvance();
+      if (customAppIsActive()) return;
+      _appsRemaining = 0;  // no app available right now
+    }
   }
 }
 
