@@ -115,6 +115,7 @@ unsigned long     buzzerEndMs     = 0;
 // Auto-rotation
 bool    autoRotateEnabled     = false;
 uint8_t autoRotateIntervalSec = 5;
+uint8_t rotateScreens         = 0x0F;  // NVS: "rot_screens" — all 4 screens on by default
 
 // SHT31 + RTC
 SHT31  sht31Sensor;

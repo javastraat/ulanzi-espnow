@@ -130,6 +130,9 @@ extern unsigned long     buzzerEndMs;
 
 extern bool    autoRotateEnabled;
 extern uint8_t autoRotateIntervalSec;
+// Bitmask of screens included in rotation: bit 0=clock, 1=temp, 2=humidity, 3=battery
+// Future screens get the next bit. Default 0x0F = all on.
+extern uint8_t rotateScreens;
 
 // ── Sensors (SHT31 + RTC) ─────────────────────────────────────────────────────
 

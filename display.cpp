@@ -566,10 +566,13 @@ void loopAutoRotate() {
 
   if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
   lastRotate = millis();
-  // Advance to next mode; skip sensor modes if SHT31 not available
-  do {
+  // Advance to next mode; skip disabled screens and sensor modes without hardware
+  for (int guard = 0; guard < MODE_COUNT; guard++) {
     displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
-  } while (!sht31Available && (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY));
+    bool sensorMissing = !sht31Available && (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY);
+    bool screenEnabled = (rotateScreens & (1u << displayMode)) != 0;
+    if (screenEnabled && !sensorMissing) break;
+  }
 }
 
 // ============================================================

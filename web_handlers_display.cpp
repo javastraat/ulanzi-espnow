@@ -391,6 +391,21 @@ void registerDisplayHandlers() {
     snprintf(buf, sizeof(buf), "{\"face\":%d}", clockFace);
     webServer.send(200, "application/json", buf);
   });
+  // ── Screen rotation mask ───────────────────────────────────────────────────
+  webServer.on("/api/screens", HTTP_GET, []() {
+    char buf[24];
+    snprintf(buf, sizeof(buf), "{\"screens\":%d}", rotateScreens);
+    webServer.send(200, "application/json", buf);
+  });
+  webServer.on("/api/screens", HTTP_POST, []() {
+    String v = webServer.arg("screens");
+    if (v.length()) {
+      rotateScreens = (uint8_t)(v.toInt() & 0xFF);
+      saveSettings();
+    }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
   webServer.on("/api/clockface", HTTP_POST, []() {
     String v = webServer.arg("face");
     if (v.length()) {

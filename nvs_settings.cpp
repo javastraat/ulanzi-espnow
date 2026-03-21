@@ -105,6 +105,7 @@ void loadSettings() {
   // Display rotation
   autoRotateEnabled     = p.getBool ("rot_en",  false);
   autoRotateIntervalSec = p.getUChar("rot_sec", 5);
+  rotateScreens         = p.getUChar("rot_screens", 0x0F);
   // Device name + mDNS hostname
   // ArduinoOTA runtime settings
   otaEnabled = p.getBool("ota_en", true);
@@ -194,6 +195,7 @@ void saveSettings() {
   // Display rotation
   p.putBool ("rot_en",  autoRotateEnabled);
   p.putUChar("rot_sec", autoRotateIntervalSec);
+  p.putUChar("rot_screens", rotateScreens);
   // ArduinoOTA runtime settings
   p.putBool  ("ota_en",   otaEnabled);
   p.putInt   ("ota_port", otaPort);

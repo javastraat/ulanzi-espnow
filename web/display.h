@@ -123,6 +123,28 @@ static const char PAGE_DISPLAY[] PROGMEM =
     </div>
   </div>
 
+  <!-- Show in Rotation -->
+  <div class="card">
+    <h3>Show in Rotation</h3>
+    <div style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">
+      Choose which screens are included when Rotate Screens is enabled.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="metric"><span class="metric-label">Clock</span>
+        <label class="switch"><input type="checkbox" id="scr-0" onchange="saveScreens()"><span class="slider"></span></label>
+      </div>
+      <div class="metric"><span class="metric-label">Temperature</span>
+        <label class="switch"><input type="checkbox" id="scr-1" onchange="saveScreens()"><span class="slider"></span></label>
+      </div>
+      <div class="metric"><span class="metric-label">Humidity</span>
+        <label class="switch"><input type="checkbox" id="scr-2" onchange="saveScreens()"><span class="slider"></span></label>
+      </div>
+      <div class="metric" style="border-bottom:none"><span class="metric-label">Battery</span>
+        <label class="switch"><input type="checkbox" id="scr-3" onchange="saveScreens()"><span class="slider"></span></label>
+      </div>
+    </div>
+  </div>
+
   <!-- Screensaver -->
   <div class="card">
     <h3>Screensaver</h3>
@@ -405,6 +427,17 @@ function setIndicators(val){
     body:'enabled='+(val?1:0)
   }).catch(function(){});
 }
+function saveScreens(){
+  var mask=0;
+  for(var i=0;i<4;i++){
+    var cb=document.getElementById('scr-'+i);
+    if(cb&&cb.checked)mask|=(1<<i);
+  }
+  fetch('/api/screens',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'screens='+mask
+  }).catch(function(){});
+}
 var _curFace=-1;
 function updateFaceButtons(f){
   _curFace=f;
@@ -462,6 +495,13 @@ function setFace(f){
   }).catch(function(){});
   fetch('/api/clockface').then(function(r){return r.json();}).then(function(d){
     updateFaceButtons(d.face||0);
+  }).catch(function(){});
+  fetch('/api/screens').then(function(r){return r.json();}).then(function(d){
+    var mask=d.screens!=null?d.screens:0x0F;
+    for(var i=0;i<4;i++){
+      var cb=document.getElementById('scr-'+i);
+      if(cb)cb.checked=!!(mask&(1<<i));
+    }
   }).catch(function(){});
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;
