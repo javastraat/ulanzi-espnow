@@ -77,8 +77,8 @@
 #define POCSAG_STATIC_MS      15000   // ms to show a short message
 
 // Long messages (scrolling): scroll speed and number of passes.
-#define POCSAG_SCROLL_SPEED_MS   50   // ms per pixel scroll step
-#define POCSAG_SCROLL_PASSES      3   // how many times to scroll through
+#define POCSAG_SCROLL_SPEED_MS   75   // ms per pixel scroll step
+#define POCSAG_SCROLL_PASSES      2   // how many times to scroll through
 
 
 // ============================================================

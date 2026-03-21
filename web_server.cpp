@@ -157,12 +157,13 @@ void setupOTA() {
   });
   ArduinoOTA.onEnd([]() {
     LOG("\n[OTA] Done — rebooting\n");
-    delay(500);
-    FastLED.clear(); FastLED.show();
-    delay(200);
+    FastLED.clear(); FastLED.show();  // wipe progress bar residue immediately
+    delay(100);
     drawDone();
+    delay(1000);
+    drawReboot();
     delay(1500);
-    otaInProgress = false;
+    // otaInProgress stays true — ArduinoOTA calls ESP.restart() after this callback
   });
   ArduinoOTA.onError([](ota_error_t e) {
     LOG("[OTA] Error %u\n", e);
