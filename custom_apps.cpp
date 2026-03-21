@@ -102,6 +102,7 @@ static CRGB _jColor(const String& json, const char* key, CRGB def = CRGB::White)
 // ── Placeholder + icon helpers ────────────────────────────────────────────────
 
 // Resolve {{topic}} placeholders in tmpl → out, substituting MQTT cached values.
+// Unresolved placeholders (topic not yet received) are replaced with "N/A".
 static void _resolvePlaceholders(const char* tmpl, char* out, int outLen) {
   int oi = 0;
   const char* p = tmpl;
@@ -113,10 +114,9 @@ static void _resolvePlaceholders(const char* tmpl, char* out, int outLen) {
         int tlen = min((int)(close - p - 2), 63);
         strncpy(topicBuf, p + 2, tlen);
         char valBuf[48] = {};
-        if (mqttCacheGet(topicBuf, valBuf, sizeof(valBuf))) {
-          for (const char* v = valBuf; *v && oi < outLen - 1; v++)
-            out[oi++] = *v;
-        }
+        const char* sub = mqttCacheGet(topicBuf, valBuf, sizeof(valBuf)) ? valBuf : "N/A";
+        for (const char* v = sub; *v && oi < outLen - 1; v++)
+          out[oi++] = *v;
         p = close + 2;
         continue;
       }
@@ -408,7 +408,12 @@ bool loopCustomApp() {
   const int yo      = (MATRIX_HEIGHT - 5) / 2;
   int       textLen = strlen(resolvedText);
 
-  if (app.center || textLen == 0) {
+  // Auto-static: if text fits in the available space next to the icon, don't scroll
+  int availW   = resolvedIcon[0] ? (MATRIX_WIDTH - POCSAG_ICON_RESERVED_PX) : MATRIX_WIDTH;
+  int textW    = textLen > 0 ? textLen * 4 - 1 : 0;
+  bool doStatic = app.center || textLen == 0 || textW <= availW;
+
+  if (doStatic) {
     // ── Static / centered ────────────────────────────────────────────────────
     if (millis() < _nextStaticDraw) return true;
     FastLED.clear();
@@ -420,9 +425,9 @@ bool loopCustomApp() {
     }
     _staticGifDelay = max(gifDelay, 50);
     if (textLen > 0) {
-      int textW  = textLen * 4 - 1;
-      int availW = MATRIX_WIDTH - textX;
-      int xo     = textX + max(0, (availW - textW) / 2);
+      int tW  = textLen * 4 - 1;
+      int aW  = MATRIX_WIDTH - textX;
+      int xo  = textX + max(0, (aW - tW) / 2);
       for (int i = 0; i < textLen; i++)
         drawChar(xo + i * 4, yo, resolvedText[i], app.color);
     }
@@ -431,7 +436,7 @@ bool loopCustomApp() {
     _nextStaticDraw = millis() + (unsigned long)_staticGifDelay;
 
   } else {
-    // ── Scrolling ────────────────────────────────────────────────────────────
+    // ── Scrolling (text too wide to fit statically) ───────────────────────────
     uint8_t sp = app.scrollSpeed ? app.scrollSpeed : POCSAG_SCROLL_SPEED_MS;
     if (millis() - app.scrollLast < sp) return true;
     app.scrollLast = millis();
