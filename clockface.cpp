@@ -103,10 +103,11 @@ static void drawFaceCalendar(const struct tm& t) {
     drawChar(dayX + i * 4, 2, buf[i], CRGB(10, 10, 10));
 
   // ── HH:MM on the right (x=10..31, 22 px available, centred) ──────────────
-  // Colon blinks every second so the user can see the clock is running.
+  // When indicators are off we gain 1 px of usable space → shift right by 1.
+  const int xoff = indicatorsEnabled ? 0 : 1;
   const int yo = (MATRIX_HEIGHT - 5) / 2;  // = 1
   int h = t.tm_hour, m = t.tm_min;
-  int xi = 11;
+  int xi = 11 + xoff;
   drawChar(xi,      yo, '0' + h / 10, colorClock); xi += 4;
   drawChar(xi,      yo, '0' + h % 10, colorClock); xi += 4;
   if (t.tm_sec % 2) {
@@ -120,11 +121,12 @@ static void drawFaceCalendar(const struct tm& t) {
   // ── Weekday dots at y=7 — 7×1 dot + 6×2 gap = 19 px ────────────────────────
   // Available after calendar box (x=9..31 = 23 px): margin = (23-19)/2 = 2
   // → start at x=11, step=3: Mo=11 Tu=14 We=17 Th=20 Fr=23 Sa=26 Su=29
+  // When indicators off: shift right by 1 (same xoff as the clock above).
   int today = (t.tm_wday + 6) % 7;  // Monday-first
   CRGB inactive(35, 35, 35);
   for (int i = 0; i < 7; i++) {
     CRGB c = (i == today) ? colorClock : inactive;
-    setLED(10 + i * 3, 7, c);
+    setLED(10 + xoff + i * 3, 7, c);
   }
 }
 
