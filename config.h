@@ -74,7 +74,7 @@
 #define POCSAG_ICON_RESERVED_PX  9   // 8 px icon + 1 px gap
 
 // Short messages (fits on screen): hold this long, then return to clock.
-#define POCSAG_STATIC_MS      15000   // ms to show a short message
+#define POCSAG_STATIC_MS      10000   // ms to show a short message
 
 // Long messages (scrolling): scroll speed and number of passes.
 #define POCSAG_SCROLL_SPEED_MS   75   // ms per pixel scroll step
