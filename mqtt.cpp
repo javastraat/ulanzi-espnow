@@ -27,6 +27,10 @@ char     mqttPrefix[32]= "homeassistant";
 char     mqttNodeId[32]= "ulanzi";
 char     mqttHaName[32]= "ulanzi";
 
+// ── MQTT client (declared early so cache functions can call _mqtt.subscribe) ───
+static WiFiClient    _wc;
+static PubSubClient  _mqtt(_wc);
+
 // ── Topic value cache (for {{topic}} placeholder substitution) ────────────────
 #define MQTT_CACHE_MAX    16
 #define MQTT_TOPIC_LEN    64
@@ -82,9 +86,6 @@ void mqttSubscribeTopic(const char* topic) {
 }
 
 // ── Internal state ─────────────────────────────────────────────────────────────
-static WiFiClient    _wc;
-static PubSubClient  _mqtt(_wc);
-
 static char          _mac[13]         = "";   // 12-char hex MAC, e.g. "A1B2C3D4E5F6"
 static bool          _connected       = false;
 static char          _statusMsg[64]   = "Disabled";
@@ -457,6 +458,9 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
   int n = (length < sizeof(val) - 1) ? (int)length : (int)sizeof(val) - 1;
   memcpy(val, payload, n);
   val[n] = '\0';
+
+  // Cache every incoming message so {{topic}} placeholders can be resolved.
+  mqttCacheSet(topic, val);
 
   String t   = String(topic);
   String pfx = String(mqttNodeId) + "/";

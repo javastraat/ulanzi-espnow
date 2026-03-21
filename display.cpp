@@ -573,22 +573,32 @@ void loopAutoRotate() {
   if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
   lastRotate = millis();
 
-  // Interleave: show one custom app between each pair of built-in modes.
-  if (!customAppShownThisCycle()) {
+  // Apps phase: show all custom apps as a group after the last built-in mode,
+  // before wrapping back to clock.  Rotation: time → temp → hum → bat → app0 → app1 → ... → time
+  static bool _appsPhase = false;
+  if (_appsPhase) {
     customAppAdvance();
-    if (customAppIsActive()) {
-      customAppSetShownFlag(true);
-      return;    // custom app activated — defer built-in mode advance
-    }
+    if (customAppIsActive()) return;  // another app started
+    _appsPhase = false;               // all apps exhausted; displayMode is already MODE_CLOCK
+    return;                           // wait a full interval, then advance from clock
   }
-  customAppSetShownFlag(false);
 
-  // Advance to next built-in mode; skip disabled screens and missing sensors
+  // Find next built-in mode, skipping disabled screens and missing sensors
+  DisplayMode next = displayMode;
   for (int guard = 0; guard < MODE_COUNT; guard++) {
-    displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
-    bool sensorMissing = !sht31Available && (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY);
-    bool screenEnabled = (rotateScreens & (1u << displayMode)) != 0;
+    next = (DisplayMode)((next + 1) % MODE_COUNT);
+    bool sensorMissing = !sht31Available && (next == MODE_TEMP || next == MODE_HUMIDITY);
+    bool screenEnabled = (rotateScreens & (1u << next)) != 0;
     if (screenEnabled && !sensorMissing) break;
+  }
+  displayMode = next;
+
+  // If we wrapped back to clock and there are custom apps, run them first
+  if (next == MODE_CLOCK && customAppCount > 0) {
+    _appsPhase = true;
+    customAppAdvance();
+    if (customAppIsActive()) return;  // first app started
+    _appsPhase = false;               // no apps available right now — stay at clock
   }
 }
 

@@ -14,13 +14,16 @@
 
 struct CustomApp {
   bool          enabled;                // slot in use
+  bool          show;                   // participate in rotation (user toggle)
   char          name[CA_NAME_LEN];      // unique key
-  char          text[CA_TEXT_LEN];      // display text
-  char          icon[CA_ICON_LEN];      // icon file path (empty = none)
+  char          text[CA_TEXT_LEN];      // display text (may contain {{topic}} placeholders)
+  char          icon[CA_ICON_LEN];      // raw icon value: "/path/file.gif" or bare ID "55505"
+  char          iconResolved[CA_ICON_LEN]; // resolved full LittleFS path (cached, not persisted)
   CRGB          color;                  // text color
   uint16_t      duration;               // seconds to show (0 = autoRotateIntervalSec)
   bool          center;                 // true = static centered, false = scrolling
   uint8_t       scrollSpeed;            // ms/step (0 = POCSAG_SCROLL_SPEED_MS)
+  uint8_t       pushIcon;               // 0=icon fixed, 1=icon scrolls with text, 2=icon once
   bool          repeat;                 // false = one scroll pass then expire
   unsigned long expiresAt;              // millis() of lifetime expiry (0 = never)
   // Runtime state (not persisted)
@@ -39,9 +42,7 @@ bool        customAppIsActive();        // true if an app is showing
 void        customAppAdvance();         // called from loopAutoRotate
 void        customAppSetFromJson(const char* name, const String& json);
 void        customAppDelete(const char* name);
+void        customAppToggleShow(const char* name); // flip show flag + save
 void        customAppListJson(char* buf, int len);
 const char* customAppScreenName();      // for getScreenName()
 
-// Interleave state (used by loopAutoRotate in display.cpp)
-bool customAppShownThisCycle();
-void customAppSetShownFlag(bool v);

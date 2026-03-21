@@ -469,4 +469,15 @@ void registerDisplayHandlers() {
     customAppDelete(name.c_str());
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
+
+  webServer.on("/api/custom_apps/toggle", HTTP_POST, []() {
+    String name = webServer.arg("name");
+    name.trim();
+    if (name.length() == 0) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"name required\"}");
+      return;
+    }
+    customAppToggleShow(name.c_str());
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
 }

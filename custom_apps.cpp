@@ -22,7 +22,6 @@ uint8_t   customAppCount = 0;
 
 static int           _activeSlot          = -1;   // currently displaying (-1 = none)
 static unsigned long _slotUntil           = 0;    // when duration expires
-static bool          _shownAppThisCycle   = false; // interleave flag (one app per mode)
 static int           _rr                  = 0;    // round-robin index
 
 // Redraw timing for static and scroll modes
@@ -175,10 +174,11 @@ static void _saveToFile(int slot) {
   char buf[320];
   snprintf(buf, sizeof(buf),
     "{\"name\":\"%s\",\"text\":\"%s\",\"color\":\"%s\",\"icon\":\"%s\","
-    "\"duration\":%u,\"center\":%s,\"scrollSpeed\":%u,\"repeat\":%s,\"lifetime\":0}",
+    "\"duration\":%u,\"center\":%s,\"scrollSpeed\":%u,\"repeat\":%s,\"show\":%s,\"lifetime\":0}",
     a.name, a.text, colStr, a.icon,
     a.duration, a.center ? "true" : "false",
-    a.scrollSpeed, a.repeat ? "true" : "false");
+    a.scrollSpeed, a.repeat ? "true" : "false",
+    a.show ? "true" : "false");
   File f = LittleFS.open(path, "w");
   if (f) { f.print(buf); f.close(); }
 }
@@ -252,15 +252,19 @@ void customAppSetFromJson(const char* name, const String& json) {
 
   String text = _jStr(json, "text", wasEnabled ? a.text : "");
   strncpy(a.text, text.c_str(), CA_TEXT_LEN - 1);  a.text[CA_TEXT_LEN - 1] = '\0';
+  _subscribePlaceholders(a.text);  // subscribe to all {{topic}} found in text
 
   String icon = _jStr(json, "icon", wasEnabled ? a.icon : "");
   strncpy(a.icon, icon.c_str(), CA_ICON_LEN - 1);  a.icon[CA_ICON_LEN - 1] = '\0';
+  _resolveIconPath(a.icon, a.iconResolved, CA_ICON_LEN);  // cache resolved path
 
   a.color       = _jColor(json, "color",       wasEnabled ? a.color       : CRGB::White);
   a.duration    = (uint16_t) _jInt(json,  "duration",    wasEnabled ? a.duration    : 0);
   a.center      = _jBool(json, "center",       wasEnabled ? a.center      : false);
   a.scrollSpeed = (uint8_t)  _jInt(json,  "scrollSpeed", wasEnabled ? (int)a.scrollSpeed : 0);
+  a.pushIcon    = (uint8_t)  _jInt(json,  "pushIcon",    wasEnabled ? (int)a.pushIcon    : 0);
   a.repeat      = _jBool(json, "repeat",       wasEnabled ? a.repeat      : true);
+  a.show        = _jBool(json, "show",         wasEnabled ? a.show        : true);
 
   int lifetime  = _jInt(json, "lifetime", 0);  // seconds; 0 = never
   a.expiresAt   = (lifetime > 0) ? millis() + (unsigned long)lifetime * 1000UL : 0;
@@ -298,6 +302,18 @@ void customAppDelete(const char* name) {
   }
 }
 
+void customAppToggleShow(const char* name) {
+  for (int i = 0; i < CUSTOM_APP_SLOTS; i++) {
+    if (!customApps[i].enabled || strcmp(customApps[i].name, name) != 0) continue;
+    customApps[i].show = !customApps[i].show;
+    // If hiding the currently active app, stop it
+    if (!customApps[i].show && _activeSlot == i) _activeSlot = -1;
+    _saveToFile(i);
+    LOG("[CA] '%s' show=%d\n", name, customApps[i].show);
+    return;
+  }
+}
+
 void customAppListJson(char* buf, int len) {
   int n = 0;
   n += snprintf(buf + n, len - n, "[");
@@ -313,11 +329,12 @@ void customAppListJson(char* buf, int len) {
                         ? (customApps[i].expiresAt - millis()) / 1000 : 0;
     n += snprintf(buf + n, len - n,
       "{\"name\":\"%s\",\"text\":\"%s\",\"color\":\"%s\",\"icon\":\"%s\","
-      "\"duration\":%u,\"center\":%s,\"repeat\":%s,\"lifetime_rem\":%lu}",
+      "\"duration\":%u,\"center\":%s,\"repeat\":%s,\"show\":%s,\"lifetime_rem\":%lu}",
       customApps[i].name, customApps[i].text, colStr, customApps[i].icon,
       customApps[i].duration,
       customApps[i].center ? "true" : "false",
       customApps[i].repeat ? "true" : "false",
+      customApps[i].show ? "true" : "false",
       rem);
   }
   snprintf(buf + n, len - n, "]");
@@ -336,6 +353,7 @@ void customAppAdvance() {
   for (int guard = 0; guard < CUSTOM_APP_SLOTS; guard++) {
     int idx = (_rr + guard) % CUSTOM_APP_SLOTS;
     if (!customApps[idx].enabled) continue;
+    if (!customApps[idx].show)    continue;
     if (customApps[idx].text[0] == '\0') continue;
     // Auto-expire by lifetime
     if (customApps[idx].expiresAt > 0 && millis() >= customApps[idx].expiresAt) {
@@ -344,7 +362,8 @@ void customAppAdvance() {
       customAppDelete(nameBuf);
       continue;
     }
-    // Activate slot
+    // Activate slot — re-resolve icon in case LittleFS wasn't ready at load time
+    _resolveIconPath(customApps[idx].icon, customApps[idx].iconResolved, CA_ICON_LEN);
     _activeSlot  = idx;
     _rr          = (idx + 1) % CUSTOM_APP_SLOTS;
     customApps[idx].scrollX     = MATRIX_WIDTH;
@@ -380,8 +399,14 @@ bool loopCustomApp() {
     return false;
   }
 
+  // Resolve {{topic}} placeholders at render time (no IO — uses MQTT cache)
+  char resolvedText[CA_TEXT_LEN];
+  _resolvePlaceholders(app.text, resolvedText, sizeof(resolvedText));
+  // Icon path was resolved once in customAppAdvance() / customAppSetFromJson()
+  const char* resolvedIcon = app.iconResolved;
+
   const int yo      = (MATRIX_HEIGHT - 5) / 2;
-  int       textLen = strlen(app.text);
+  int       textLen = strlen(resolvedText);
 
   if (app.center || textLen == 0) {
     // ── Static / centered ────────────────────────────────────────────────────
@@ -389,8 +414,8 @@ bool loopCustomApp() {
     FastLED.clear();
     int gifDelay = 500;
     int textX    = 0;
-    if (app.icon[0]) {
-      int tx = drawIcon(app.icon, &gifDelay, 0);
+    if (resolvedIcon[0]) {
+      int tx = drawIcon(resolvedIcon, &gifDelay, 0);
       if (tx != ICON_DRAW_FAILED) textX = tx; else gifDelay = 500;
     }
     _staticGifDelay = max(gifDelay, 50);
@@ -399,7 +424,7 @@ bool loopCustomApp() {
       int availW = MATRIX_WIDTH - textX;
       int xo     = textX + max(0, (availW - textW) / 2);
       for (int i = 0; i < textLen; i++)
-        drawChar(xo + i * 4, yo, app.text[i], app.color);
+        drawChar(xo + i * 4, yo, resolvedText[i], app.color);
     }
     drawIndicators();
     FastLED.show();
@@ -421,8 +446,8 @@ bool loopCustomApp() {
     // Advance icon at GIF frame rate
     if (millis() >= _scrollNextGifMs) {
       int gifDelay = 100;
-      if (app.icon[0]) {
-        int tx = drawIcon(app.icon, &gifDelay, 0);
+      if (resolvedIcon[0]) {
+        int tx = drawIcon(resolvedIcon, &gifDelay, 0);
         _scrollHasIcon = (tx != ICON_DRAW_FAILED);
       } else {
         _scrollHasIcon = false;
@@ -440,7 +465,7 @@ bool loopCustomApp() {
     int clipFrom = _scrollHasIcon ? POCSAG_ICON_RESERVED_PX : 0;
     for (int i = 0; i < textLen; i++) {
       int cx = app.scrollX + i * 4;
-      if (cx >= clipFrom) drawChar(cx, yo, app.text[i], app.color);
+      if (cx >= clipFrom) drawChar(cx, yo, resolvedText[i], app.color);
     }
 
     drawIndicators();
@@ -460,6 +485,3 @@ bool loopCustomApp() {
   return true;
 }
 
-// Called from loopAutoRotate — expose interleave flag so it persists across calls
-bool customAppShownThisCycle()    { return _shownAppThisCycle; }
-void customAppSetShownFlag(bool v){ _shownAppThisCycle = v; }
