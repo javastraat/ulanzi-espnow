@@ -28,6 +28,7 @@
 #include "buzzer.h"
 #include "buttons.h"
 #include "display.h"
+#include "custom_apps.h"
 #include "menu.h"
 #include "filesystem.h"
 #include "nvs_settings.h"
@@ -259,6 +260,7 @@ void setup() {
   }
 
   setupReceiver();// connects WiFi → calls setupOTA() → starts webServer
+  initCustomApps();  // load /customapps/*.json from LittleFS
 
   // Arm IP scroll if WiFi connected, or show AP name so user knows where to connect
   if (WiFi.status() == WL_CONNECTED) {

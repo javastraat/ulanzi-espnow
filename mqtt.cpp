@@ -9,6 +9,7 @@
 #include "sensor.h"
 #include "nvs_settings.h"
 #include "display.h"
+#include "custom_apps.h"
 #include "buttons.h"
 #include "receiver.h"
 #include <WiFi.h>
@@ -25,6 +26,60 @@ bool     mqttDiscovery = true;
 char     mqttPrefix[32]= "homeassistant";
 char     mqttNodeId[32]= "ulanzi";
 char     mqttHaName[32]= "ulanzi";
+
+// ── Topic value cache (for {{topic}} placeholder substitution) ────────────────
+#define MQTT_CACHE_MAX    16
+#define MQTT_TOPIC_LEN    64
+#define MQTT_VALUE_LEN    48
+#define MQTT_EXTRA_SUBS   16   // extra topics subscribed for custom app placeholders
+
+struct _CacheEntry { char topic[MQTT_TOPIC_LEN]; char value[MQTT_VALUE_LEN]; };
+static _CacheEntry _cache[MQTT_CACHE_MAX];
+static int         _cacheCount    = 0;
+
+static char _extraSubs[MQTT_EXTRA_SUBS][MQTT_TOPIC_LEN];
+static int  _extraSubsCount = 0;
+
+void mqttCacheSet(const char* topic, const char* value) {
+  for (int i = 0; i < _cacheCount; i++) {
+    if (strcmp(_cache[i].topic, topic) == 0) {
+      strncpy(_cache[i].value, value, MQTT_VALUE_LEN - 1);
+      _cache[i].value[MQTT_VALUE_LEN - 1] = '\0';
+      return;
+    }
+  }
+  if (_cacheCount < MQTT_CACHE_MAX) {
+    strncpy(_cache[_cacheCount].topic, topic, MQTT_TOPIC_LEN - 1);
+    _cache[_cacheCount].topic[MQTT_TOPIC_LEN - 1] = '\0';
+    strncpy(_cache[_cacheCount].value, value, MQTT_VALUE_LEN - 1);
+    _cache[_cacheCount].value[MQTT_VALUE_LEN - 1] = '\0';
+    _cacheCount++;
+  }
+}
+
+bool mqttCacheGet(const char* topic, char* buf, int len) {
+  for (int i = 0; i < _cacheCount; i++) {
+    if (strcmp(_cache[i].topic, topic) == 0) {
+      strncpy(buf, _cache[i].value, len - 1);
+      buf[len - 1] = '\0';
+      return true;
+    }
+  }
+  return false;
+}
+
+void mqttSubscribeTopic(const char* topic) {
+  if (!topic || topic[0] == '\0') return;
+  for (int i = 0; i < _extraSubsCount; i++)
+    if (strcmp(_extraSubs[i], topic) == 0) return;  // already registered
+  if (_extraSubsCount < MQTT_EXTRA_SUBS) {
+    strncpy(_extraSubs[_extraSubsCount], topic, MQTT_TOPIC_LEN - 1);
+    _extraSubs[_extraSubsCount][MQTT_TOPIC_LEN - 1] = '\0';
+    _extraSubsCount++;
+  }
+  if (_mqtt.connected()) _mqtt.subscribe(topic);
+  LOG("[MQTT] subscribed topic: %s\n", topic);
+}
 
 // ── Internal state ─────────────────────────────────────────────────────────────
 static WiFiClient    _wc;
@@ -625,6 +680,23 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     pocsagSynced = false;
     displayMode  = MODE_CLOCK;  // ensure scanner is visible immediately
 
+  // ── Custom apps ─────────────────────────────────────────────────────────────
+  } else if (sub.startsWith("custom_app/") && sub.endsWith("/set")) {
+    // sub = "custom_app/{name}/set" → extract name
+    String appName = sub.substring(strlen("custom_app/"), sub.length() - 4);
+    appName.trim();
+    if (appName.length() > 0 && appName.length() < CA_NAME_LEN) {
+      String payload = String(val);
+      payload.trim();
+      if (payload.length() == 0 || payload == "null" || payload == "{}") {
+        customAppDelete(appName.c_str());
+        LOG("[MQTT] custom_app '%s' deleted\n", appName.c_str());
+      } else {
+        customAppSetFromJson(appName.c_str(), payload);
+        LOG("[MQTT] custom_app '%s' updated\n", appName.c_str());
+      }
+    }
+
   } else if (sub == "text/display_message/set") {
 #if RECV_POCSAG
     String payloadStr = String(val);
@@ -692,11 +764,14 @@ static bool _doConnect() {
 
   // Subscribe to command topics (wildcard per component)
   char sub[96];
-  snprintf(sub, sizeof(sub), "%s/switch/+/set",     mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/number/+/set",     mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/select/+/set",     mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/text/+/set",       mqttNodeId); _mqtt.subscribe(sub);
-  snprintf(sub, sizeof(sub), "%s/button/+/command", mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/switch/+/set",      mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/number/+/set",      mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/select/+/set",      mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/text/+/set",        mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/button/+/command",  mqttNodeId); _mqtt.subscribe(sub);
+  snprintf(sub, sizeof(sub), "%s/custom_app/+/set",  mqttNodeId); _mqtt.subscribe(sub);
+  // Re-subscribe to any placeholder topics registered by custom apps
+  for (int i = 0; i < _extraSubsCount; i++) _mqtt.subscribe(_extraSubs[i]);
 
   // Publish discovery + immediate state
   _publishAllDiscovery();

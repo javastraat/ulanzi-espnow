@@ -1,6 +1,13 @@
 #pragma once
 #include <FastLED.h>
 
+// Sentinel returned by drawIcon on failure (must be more negative than any valid x)
+#define ICON_DRAW_FAILED  (-9999)
+
+// Unified icon draw: routes to GIF or JPEG decoder. x0 = left edge.
+// Returns text start x (= x0 + iconWidth + 1), or ICON_DRAW_FAILED on failure.
+int drawIcon(const char* path, int* delayMs, int x0 = 0);
+
 void setupDisplay();
 void loopDisplay();
 void loopBrightness();

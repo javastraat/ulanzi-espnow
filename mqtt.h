@@ -22,3 +22,10 @@ void        mqttNotifyState();     // request immediate state publish (safe to c
 void        mqttRequestReconnect();// drop + reconnect (call after config change)
 bool        mqttIsConnected();
 const char* mqttGetStatus();       // human-readable status string for web UI
+
+// ── Topic value cache (for {{topic}} placeholder substitution) ────────────────
+// Any message received on any subscribed topic is cached here.
+// custom_apps.cpp uses these to resolve {{topic}} in app text.
+void mqttSubscribeTopic(const char* topic);      // subscribe (queued for reconnect too)
+bool mqttCacheGet(const char* topic, char* buf, int len); // false if not cached yet
+void mqttCacheSet(const char* topic, const char* value);  // called by _callback + externally

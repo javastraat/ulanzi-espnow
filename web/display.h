@@ -284,6 +284,26 @@ static const char PAGE_DISPLAY[] PROGMEM =
     </div>
   </div>
 
+  <!-- Custom Apps -->
+  <div class="card">
+    <h3>Custom Apps</h3>
+    <div style="font-size:.78em;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
+      Apps cycle in rotation between built-in screens.<br>
+      Send via MQTT: <code style="font-size:.85em">{nodeId}/custom_app/{name}/set</code>
+    </div>
+    <div id="ca-list" style="margin-bottom:12px"></div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:.82em;font-weight:bold;margin-bottom:6px">Send App (JSON)</div>
+      <textarea id="ca-json" rows="4"
+        style="width:100%;box-sizing:border-box;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;padding:6px;font-size:.78em;font-family:monospace;resize:vertical"
+        placeholder='{"name":"hello","text":"Hello World","color":"#00FF00","duration":10,"repeat":true}'></textarea>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="bp" style="flex:1" onclick="sendCustomApp()">Send</button>
+        <button class="bp" style="flex:0 0 auto;padding:5px 12px" onclick="loadCustomApps()">Refresh</button>
+      </div>
+    </div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -438,6 +458,46 @@ function saveScreens(){
     body:'screens='+mask
   }).catch(function(){});
 }
+function loadCustomApps(){
+  fetch('/api/custom_apps').then(function(r){return r.json();}).then(function(apps){
+    var el=document.getElementById('ca-list');
+    if(!apps||apps.length===0){el.innerHTML='<div style="font-size:.78em;color:var(--text-muted)">No apps defined.</div>';return;}
+    var html='<table style="width:100%;border-collapse:collapse;font-size:.78em">';
+    html+='<tr><th style="text-align:left;padding:3px 4px;color:var(--text-muted)">Name</th>';
+    html+='<th style="text-align:left;padding:3px 4px;color:var(--text-muted)">Text</th>';
+    html+='<th style="text-align:left;padding:3px 4px;color:var(--text-muted)">Dur</th>';
+    html+='<th style="padding:3px 4px"></th></tr>';
+    apps.forEach(function(a){
+      var swatch='<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+a.color+';border:1px solid #666;vertical-align:middle;margin-right:3px"></span>';
+      var rem=a.lifetime_rem>0?'<span style="color:#f90;margin-left:3px">('+a.lifetime_rem+'s)</span>':'';
+      html+='<tr style="border-top:1px solid var(--border-color)">';
+      html+='<td style="padding:4px">'+swatch+escHtml(a.name)+'</td>';
+      html+='<td style="padding:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(a.text)+rem+'</td>';
+      html+='<td style="padding:4px">'+(a.duration||'auto')+'s</td>';
+      html+='<td style="padding:4px;text-align:right"><button class="bp" style="padding:3px 8px;background:#dc3545" onclick="deleteCustomApp(\''+escHtml(a.name)+'\')">&#x2715;</button></td>';
+      html+='</tr>';
+    });
+    html+='</table>';
+    el.innerHTML=html;
+  }).catch(function(){document.getElementById('ca-list').innerHTML='<div style="font-size:.78em;color:#f44">Error loading apps.</div>';});
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function deleteCustomApp(name){
+  if(!confirm('Delete app "'+name+'"?'))return;
+  fetch('/api/custom_apps?name='+encodeURIComponent(name),{method:'DELETE'})
+    .then(function(){loadCustomApps();}).catch(function(){});
+}
+function sendCustomApp(){
+  var json=document.getElementById('ca-json').value.trim();
+  if(!json){alert('Enter a JSON payload.');return;}
+  fetch('/api/custom_apps',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:json
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){document.getElementById('ca-json').value='';loadCustomApps();}
+    else alert('Error: '+(d.error||'unknown'));
+  }).catch(function(){alert('Request failed.');});
+}
 var _curFace=-1;
 function updateFaceButtons(f){
   _curFace=f;
@@ -503,6 +563,7 @@ function setFace(f){
       if(cb)cb.checked=!!(mask&(1<<i));
     }
   }).catch(function(){});
+  loadCustomApps();
   fetch('/api/screensaver').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-ss').checked=d.enabled;
     document.getElementById('ss-timeout').value=d.timeout||60;

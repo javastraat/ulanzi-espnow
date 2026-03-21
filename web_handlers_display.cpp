@@ -4,6 +4,7 @@
 #include "globals.h"
 #include "display.h"
 #include "clockface.h"
+#include "custom_apps.h"
 #include "buzzer.h"
 #include "nvs_settings.h"
 #include "mqtt.h"
@@ -415,6 +416,57 @@ void registerDisplayHandlers() {
         saveSettings();
       }
     }
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  // ── Custom apps ────────────────────────────────────────────────────────────
+  webServer.on("/api/custom_apps", HTTP_GET, []() {
+    initCustomApps();   // pick up any files uploaded since last scan
+    char buf[2048];
+    customAppListJson(buf, sizeof(buf));
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/custom_apps", HTTP_POST, []() {
+    // Body can be form field "plain" (raw JSON) or individual args "name" + "json"
+    String json = webServer.arg("plain");
+    if (json.length() == 0) json = webServer.arg("json");
+    json.trim();
+    if (json.length() == 0) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"json body required\"}");
+      return;
+    }
+    // Extract name — mandatory field
+    String name = webServer.arg("name");
+    if (name.length() == 0) {
+      // Try to parse from JSON body
+      int k = json.indexOf("\"name\"");
+      if (k >= 0) {
+        int c = json.indexOf(':', k + 6);
+        if (c >= 0) {
+          int q1 = json.indexOf('"', c + 1);
+          int q2 = q1 >= 0 ? json.indexOf('"', q1 + 1) : -1;
+          if (q2 > q1) name = json.substring(q1 + 1, q2);
+        }
+      }
+    }
+    name.trim();
+    if (name.length() == 0 || name.length() >= CA_NAME_LEN) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"name required\"}");
+      return;
+    }
+    customAppSetFromJson(name.c_str(), json);
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/custom_apps", HTTP_DELETE, []() {
+    String name = webServer.arg("name");
+    name.trim();
+    if (name.length() == 0) {
+      webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"name required\"}");
+      return;
+    }
+    customAppDelete(name.c_str());
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 }

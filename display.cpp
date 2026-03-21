@@ -3,6 +3,7 @@
 #include "display.h"
 #include "globals.h"
 #include "clockface.h"
+#include "custom_apps.h"
 #include "menu.h"
 #include "mqtt.h"
 #include <AnimatedGIF.h>
@@ -78,10 +79,7 @@ static const uint8_t FONT_SPECIAL[][5] = {
   {0b010,0b101,0b010,0b000,0b000}, // ~ used as ° (degree: small circle at top)
 };
 
-// Sentinel returned by drawGifIcon / drawJpegIcon / drawIcon on failure.
-// Must be more negative than any valid off-screen x position.
-// Worst case: pocsagScrollX reaches -(POCSAG_ICON_RESERVED_PX + POCSAG_MSG_MAX_LEN*4) ≈ -329.
-#define ICON_DRAW_FAILED  (-9999)
+// ICON_DRAW_FAILED is defined in display.h and used here and in custom_apps.cpp
 
 // ============================================================
 // GIF icon rendering (AnimatedGIF + LittleFS) — file-private state
@@ -348,7 +346,8 @@ static bool _isJpeg(const char* path) {
 
 // Unified icon draw: routes to GIF or JPEG decoder based on file extension.
 // x0: left edge of icon; 0 for static displays, pocsagScrollX for scrolling.
-static int drawIcon(const char* path, int* delayMs, int x0 = 0) {
+// Exported in display.h so custom_apps.cpp can call it.
+int drawIcon(const char* path, int* delayMs, int x0) {
   if (_isJpeg(path)) return drawJpegIcon(path, delayMs, x0);
   return drawGifIcon(path, delayMs, x0);
 }
@@ -559,14 +558,32 @@ void loopAutoRotate() {
   if (prevPocsag) {                                    // message just ended
     prevPocsag  = false;
     displayMode = savedMode;                           // restore pre-message mode
-    lastRotate  = millis();   // restart rotation timer from now
+    lastRotate  = millis();
     return;
   }
 #endif
 
+  // While a custom app is showing, keep resetting the timer so the full
+  // rotation interval starts fresh after the app ends.
+  if (customAppIsActive()) {
+    lastRotate = millis();
+    return;
+  }
+
   if (millis() - lastRotate < (unsigned long)autoRotateIntervalSec * 1000) return;
   lastRotate = millis();
-  // Advance to next mode; skip disabled screens and sensor modes without hardware
+
+  // Interleave: show one custom app between each pair of built-in modes.
+  if (!customAppShownThisCycle()) {
+    customAppAdvance();
+    if (customAppIsActive()) {
+      customAppSetShownFlag(true);
+      return;    // custom app activated — defer built-in mode advance
+    }
+  }
+  customAppSetShownFlag(false);
+
+  // Advance to next built-in mode; skip disabled screens and missing sensors
   for (int guard = 0; guard < MODE_COUNT; guard++) {
     displayMode = (DisplayMode)((displayMode + 1) % MODE_COUNT);
     bool sensorMissing = !sht31Available && (displayMode == MODE_TEMP || displayMode == MODE_HUMIDITY);
@@ -605,7 +622,8 @@ const char* getScreenName() {
 #if RECV_POCSAG
   if (pocsagMsgActive)   return "POCSAG";
 #endif
-  if (screensaverActive) return "screensaver";
+  if (screensaverActive)    return "screensaver";
+  if (customAppIsActive())  return customAppScreenName();
   switch (displayMode) {
     case MODE_CLOCK:    return "clock";
     case MODE_TEMP:     return "temp";
@@ -813,6 +831,9 @@ void loopDisplay() {
       return;
     }
   }
+
+  // Custom app display — takes priority over built-in modes
+  if (loopCustomApp()) return;
 
   // Auto-return to clock after mode timeout (manual presses only; rotation manages itself)
   if (!autoRotateEnabled && displayMode != MODE_CLOCK && millis() >= modeActiveUntil)
