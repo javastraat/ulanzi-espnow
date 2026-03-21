@@ -199,6 +199,31 @@ void _gifCloseIfOpen() {
   if (_gifIsOpen) { _gif.close(); _gifIsOpen = false; _gifCurPath[0] = '\0'; }
 }
 
+// Play one frame of a full 32×8 GIF (e.g. bigtime.gif background).
+// Sets delayMs to the frame delay. Returns true if the frame was drawn.
+bool playFullscreenGifFrame(const char* path, int* delayMs) {
+  *delayMs = 100;
+  if (!fsAvailable) return false;
+  if (!_gifEnsureOpen(path)) return false;
+  _gifX0 = 0;
+  _gifY0 = 0;
+  int delay = 100;
+  int r = _gif.playFrame(false, &delay);
+  *delayMs = max(delay, 33);
+  if (r < 0) {
+    _gif.close();
+    _gifIsOpen = false;
+    _gifCurPath[0] = '\0';
+    return false;
+  }
+  if (r == 0) {          // last frame of non-looping GIF — close so next call restarts
+    _gif.close();
+    _gifIsOpen = false;
+    _gifCurPath[0] = '\0';
+  }
+  return true;
+}
+
 // ── Screensaver brightness save/restore ──────────────────────────────────────
 
 static uint8_t _ssSavedBrightness = 0;
@@ -817,7 +842,8 @@ void loopDisplay() {
   }
 
   // Close GIF when not in a mode that uses it
-  if (!screensaverActive &&
+  bool isBigtimeFace = (displayMode == MODE_CLOCK && (clockFace % CLOCK_FACE_COUNT) == 4);
+  if (!screensaverActive && !isBigtimeFace &&
       displayMode != MODE_TEMP && displayMode != MODE_HUMIDITY && displayMode != MODE_BATTERY)
     _gifCloseIfOpen();
 
@@ -934,16 +960,17 @@ void loopDisplay() {
     return;
   }
 
-  // Clock — update once per second
-  static unsigned long lastUpdate = 0;
-  if (millis() - lastUpdate < 1000) return;
+  // Clock — update at face-appropriate rate (GIF faces need ~33 ms; others 1000 ms)
+  static unsigned long lastUpdate   = 0;
+  static unsigned long clockDelayMs = 1000;
+  if (millis() - lastUpdate < clockDelayMs) return;
   lastUpdate = millis();
 
   struct tm t;
   if (!getLocalTime(&t)) return;
 
   FastLED.clear();
-  drawClockFace(t);
+  clockDelayMs = (unsigned long)drawClockFace(t);
   drawIndicators();
   FastLED.show();
 }

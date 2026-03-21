@@ -113,7 +113,11 @@ static const char PAGE_DISPLAY[] PROGMEM =
         <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM large digits</span>
       </button>
       <button id="cf-4" class="bp" onclick="setFace(4)" style="text-align:left;padding:7px 10px">
-        <strong>4 — Binary</strong>
+        <strong>4 — Big+GIF</strong>
+        <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">HH:MM over /bigtime.gif</span>
+      </button>
+      <button id="cf-5" class="bp" onclick="setFace(5)" style="text-align:left;padding:7px 10px">
+        <strong>5 — Binary</strong>
         <span style="color:var(--text-muted);font-size:.8em;margin-left:6px">H/M/S as bit rows</span>
       </button>
     </div>
@@ -404,7 +408,7 @@ function setIndicators(val){
 var _curFace=-1;
 function updateFaceButtons(f){
   _curFace=f;
-  for(var i=0;i<5;i++){
+  for(var i=0;i<6;i++){
     var b=document.getElementById('cf-'+i);
     if(!b)continue;
     b.style.background=(i===f)?'#00bcd4':'#444';

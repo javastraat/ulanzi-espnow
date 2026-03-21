@@ -15,6 +15,7 @@ void drawClickOK();
 void drawChar(int x, int y, char c, CRGB color);
 void setLED(int x, int y, CRGB color);
 void _gifCloseIfOpen();
+bool playFullscreenGifFrame(const char* path, int* delayMs);
 const char* getScreenName();
 void screensaverApplyBrightness();
 void resetScreensaverIdle();

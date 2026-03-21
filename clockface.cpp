@@ -2,7 +2,7 @@
 // See clockface.h for the face index table.
 #include "clockface.h"
 #include "globals.h"
-#include "display.h"   // setLED(), drawChar()
+#include "display.h"   // setLED(), drawChar(), playFullscreenGifFrame()
 
 // ── Big-digit bitmaps (ported from AWTRIX3 Apps.cpp) ─────────────────────────
 // 6 pixels wide × 7 pixels tall. MSB-first encoding, 1 byte per row.
@@ -176,14 +176,64 @@ static void drawFaceBinary(const struct tm& t) {
   }
 }
 
+// ── Face 4 — Big HH:MM with /bigtime.gif inside the digits ───────────────────
+// 1. Plays one GIF frame to fill the matrix with animation colors.
+// 2. Blacks out every pixel outside the digit shapes.
+// 3. For digit pixels: blends the GIF color toward white so digits are always
+//    bright and readable while the animation still tints them.
+
+static int drawFaceBigGif(const struct tm& t) {
+  int delayMs = 100;
+  playFullscreenGifFrame("/bigtime.gif", &delayMs);
+
+  int h = t.tm_hour, m = t.tm_min, s = t.tm_sec;
+  int colonIdx  = (s % 2) ? 10 : 11;
+  int digits[5] = { h / 10, h % 10, colonIdx, m / 10, m % 10 };
+
+  // Build a per-row bitmask of digit pixel positions
+  uint32_t digitMask[MATRIX_HEIGHT] = {};
+  for (int i = 0; i < 5; i++) {
+    int xx = i * 7 - (i > 2 ? 2 : 0) - (i == 2 ? 1 : 0);
+    for (int row = 0; row < 7; row++) {
+      uint8_t m = BIGDIGITS[digits[i]][row];
+      for (int col = 0; col < 6; col++) {
+        if (!((m >> (7 - col)) & 1)) {  // bit=0 → digit pixel
+          int px = xx + col;
+          if (px >= 0 && px < MATRIX_WIDTH)
+            digitMask[row] |= (1u << px);
+        }
+      }
+    }
+  }
+
+  // Apply mask: non-digit pixels → black.
+  // Digit pixels: show GIF at full color; fall back to white where GIF is dark/off.
+  for (int y = 0; y < MATRIX_HEIGHT; y++) {
+    for (int x = 0; x < MATRIX_WIDTH; x++) {
+      if (digitMask[y] & (1u << x)) {
+        int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
+        CRGB &px = leds[idx];
+        if (px.r < 20 && px.g < 20 && px.b < 20)
+          px = CRGB(220, 220, 220);  // GIF dark here — show white so time stays readable
+        // else: keep full GIF color unchanged
+      } else {
+        setLED(x, y, CRGB::Black);
+      }
+    }
+  }
+
+  return delayMs;
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 
-void drawClockFace(const struct tm& t) {
+int drawClockFace(const struct tm& t) {
   switch (clockFace % CLOCK_FACE_COUNT) {
-    case 1:  drawFaceClassic(t);  break;
-    case 2:  drawFaceWeekday(t);  break;
-    case 3:  drawFaceBig(t);      break;
-    case 4:  drawFaceBinary(t);   break;
-    default: drawFaceCalendar(t); break;  // 0 = default
+    case 1:  drawFaceClassic(t);  return 1000;
+    case 2:  drawFaceWeekday(t);  return 1000;
+    case 3:  drawFaceBig(t);      return 1000;
+    case 4:  return drawFaceBigGif(t);
+    case 5:  drawFaceBinary(t);   return 1000;
+    default: drawFaceCalendar(t); return 1000;  // 0 = default
   }
 }
