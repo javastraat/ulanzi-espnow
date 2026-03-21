@@ -19,13 +19,14 @@
     "<button class=\"nav-tab\" id=\"nt-more\" onclick=\"toggleMore(event)\">More &#9662;</button>" \
     "<div class=\"nav-more-menu\" id=\"nav-more-menu\">" \
       "<a href=\"/display\" class=\"nav-more-item\">Display</a>" \
-      "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
+      "<a href=\"/apps\" class=\"nav-more-item\">Apps</a>" \
+      "<a href=\"/files\" class=\"nav-more-item\">Files-Icons</a>" \
+      "<a href=\"/wifi\" class=\"nav-more-item\">WiFi</a>" \
       "<a href=\"/mqtt\" class=\"nav-more-item\">MQTT</a>" \
       "<a href=\"/espnow\" class=\"nav-more-item\">ESP-NOW</a>" \
-      "<a href=\"/wifi\" class=\"nav-more-item\">WiFi</a>" \
-      "<a href=\"/files\" class=\"nav-more-item\">Files-Icons</a>" \
-      "<a href=\"/info\" class=\"nav-more-item\">Info</a>" \
+      "<a href=\"/settings\" class=\"nav-more-item\">Settings</a>" \
       "<a href=\"/serial\" class=\"nav-more-item\">Serial</a>" \
+      "<a href=\"/info\" class=\"nav-more-item\">Info</a>" \
       "<a href=\"/firmware\" class=\"nav-more-item\">Firmware</a>" \
       "<a href=\"/backup\" class=\"nav-more-item\">Backup</a>" \
     "</div>" \

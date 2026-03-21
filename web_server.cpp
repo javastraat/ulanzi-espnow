@@ -20,6 +20,7 @@
 #include "web_handlers_backup.h"
 #include "web/wifi.h"
 #include "web/firmware.h"
+#include "web/apps.h"
 
 // ── Web + OTA task (Core 0) ───────────────────────────────────────────────────
 
@@ -50,6 +51,9 @@ static void setupWebServer() {
 
   webServer.on("/display", HTTP_GET, []() {
     webServer.send_P(200, "text/html", PAGE_DISPLAY);
+  });
+  webServer.on("/apps", HTTP_GET, []() {
+    webServer.send_P(200, "text/html", PAGE_APPS);
   });
 
   webServer.on("/settings", HTTP_GET, []() {
