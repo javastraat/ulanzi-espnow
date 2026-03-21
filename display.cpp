@@ -969,7 +969,8 @@ void loopDisplay() {
   struct tm t;
   if (!getLocalTime(&t)) return;
 
-  FastLED.clear();
+  // Animated face 4 paints all pixels itself — skip clear to avoid WS2812B glitches
+  if ((clockFace % CLOCK_FACE_COUNT) != 4) FastLED.clear();
   clockDelayMs = (unsigned long)drawClockFace(t);
   drawIndicators();
   FastLED.show();

@@ -183,28 +183,42 @@ static void drawFaceBinary(const struct tm& t) {
 // Update rate: ~50 ms (≈20 fps) for fluid motion.
 
 static int drawFaceBigGif(const struct tm& t) {
-  static uint8_t scroll = 0;
-  scroll += 2;                             // advance rainbow 2 hue steps per frame
-
   int h = t.tm_hour, m = t.tm_min;
   int digits[5] = { h / 10, h % 10, 10, m / 10, m % 10 };  // 10 = colon, always on
 
+  // Build digit pixel mask (shared by both GIF and rainbow paths)
+  uint32_t digitMask[MATRIX_HEIGHT] = {};
   for (int i = 0; i < 5; i++) {
     int xx = i * 7 - (i > 2 ? 2 : 0) - (i == 2 ? 1 : 0);
     for (int row = 0; row < 7; row++) {
       uint8_t mask = BIGDIGITS[digits[i]][row];
-      for (int col = 0; col < 6; col++) {
-        int px = xx + col;
-        if (!((mask >> (7 - col)) & 1)) {  // bit=0 → digit pixel
-          // Hue based on x position + scroll — wide gradient spans full width
-          uint8_t hue = (uint8_t)(scroll + px * 8);
-          setLED(px, row, CHSV(hue, 255, 255));
-        }
-        // bit=1 → background → already black from FastLED.clear()
-      }
+      for (int col = 0; col < 6; col++)
+        if (!((mask >> (7 - col)) & 1) && xx + col >= 0 && xx + col < MATRIX_WIDTH)
+          digitMask[row] |= (1u << (xx + col));
     }
   }
-  return 50;
+
+  // ── GIF path: /bigtime.gif exists ────────────────────────────────────────
+  int gifDelay = 80;
+  if (playFullscreenGifFrame("/bigtime.gif", &gifDelay)) {
+    // Black out all non-digit pixels; digit pixels keep the GIF color
+    for (int y = 0; y < MATRIX_HEIGHT; y++)
+      for (int x = 0; x < MATRIX_WIDTH; x++)
+        if (!(digitMask[y] & (1u << x)))
+          setLED(x, y, CRGB::Black);
+    return max(gifDelay, 80);  // never faster than 80 ms to avoid WS2812B glitches
+  }
+
+  // ── Fallback: built-in scrolling rainbow ─────────────────────────────────
+  static uint8_t scroll = 0;
+  scroll += 2;
+  for (int y = 0; y < MATRIX_HEIGHT; y++)
+    for (int x = 0; x < MATRIX_WIDTH; x++)
+      if (digitMask[y] & (1u << x))
+        setLED(x, y, CHSV((uint8_t)(scroll + x * 8), 255, 255));
+      else
+        setLED(x, y, CRGB::Black);
+  return 80;
 }
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
