@@ -176,53 +176,35 @@ static void drawFaceBinary(const struct tm& t) {
   }
 }
 
-// ── Face 4 — Big HH:MM with /bigtime.gif inside the digits ───────────────────
-// 1. Plays one GIF frame to fill the matrix with animation colors.
-// 2. Blacks out every pixel outside the digit shapes.
-// 3. For digit pixels: blends the GIF color toward white so digits are always
-//    bright and readable while the animation still tints them.
+// ── Face 4 — Big HH:MM with scrolling rainbow inside the digits ───────────────
+// Renders a smooth horizontal HSV rainbow that scrolls left across the digit
+// shapes. Each digit pixel's hue is derived from its x position + a scroll
+// offset that advances every frame — always smooth, no GIF file needed.
+// Update rate: ~50 ms (≈20 fps) for fluid motion.
 
 static int drawFaceBigGif(const struct tm& t) {
-  int delayMs = 100;
-  playFullscreenGifFrame("/bigtime.gif", &delayMs);
+  static uint8_t scroll = 0;
+  scroll += 2;                             // advance rainbow 2 hue steps per frame
 
-  int h = t.tm_hour, m = t.tm_min, s = t.tm_sec;
-  int colonIdx  = (s % 2) ? 10 : 11;
-  int digits[5] = { h / 10, h % 10, colonIdx, m / 10, m % 10 };
+  int h = t.tm_hour, m = t.tm_min;
+  int digits[5] = { h / 10, h % 10, 10, m / 10, m % 10 };  // 10 = colon, always on
 
-  // Build a per-row bitmask of digit pixel positions
-  uint32_t digitMask[MATRIX_HEIGHT] = {};
   for (int i = 0; i < 5; i++) {
     int xx = i * 7 - (i > 2 ? 2 : 0) - (i == 2 ? 1 : 0);
     for (int row = 0; row < 7; row++) {
-      uint8_t m = BIGDIGITS[digits[i]][row];
+      uint8_t mask = BIGDIGITS[digits[i]][row];
       for (int col = 0; col < 6; col++) {
-        if (!((m >> (7 - col)) & 1)) {  // bit=0 → digit pixel
-          int px = xx + col;
-          if (px >= 0 && px < MATRIX_WIDTH)
-            digitMask[row] |= (1u << px);
+        int px = xx + col;
+        if (!((mask >> (7 - col)) & 1)) {  // bit=0 → digit pixel
+          // Hue based on x position + scroll — wide gradient spans full width
+          uint8_t hue = (uint8_t)(scroll + px * 8);
+          setLED(px, row, CHSV(hue, 255, 255));
         }
+        // bit=1 → background → already black from FastLED.clear()
       }
     }
   }
-
-  // Apply mask: non-digit pixels → black.
-  // Digit pixels: show GIF at full color; fall back to white where GIF is dark/off.
-  for (int y = 0; y < MATRIX_HEIGHT; y++) {
-    for (int x = 0; x < MATRIX_WIDTH; x++) {
-      if (digitMask[y] & (1u << x)) {
-        int idx = (y % 2 == 0) ? y * MATRIX_WIDTH + x : (y + 1) * MATRIX_WIDTH - 1 - x;
-        CRGB &px = leds[idx];
-        if (px.r < 20 && px.g < 20 && px.b < 20)
-          px = CRGB(220, 220, 220);  // GIF dark here — show white so time stays readable
-        // else: keep full GIF color unchanged
-      } else {
-        setLED(x, y, CRGB::Black);
-      }
-    }
-  }
-
-  return delayMs;
+  return 50;
 }
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
