@@ -9,15 +9,19 @@ void registerEspNowHandlers() {
     char buf[128];
     snprintf(buf, sizeof(buf),
       "{\"pocsag\":%s,\"dmr\":%s,\"espnow2\":%s}",
-      recvPocsagEnabled ? "true" : "false",
-      "false",   // RECV_DMR compile-time disabled
-      "false");  // RECV_ESPNOW2 not yet implemented
+      recvPocsagEnabled  ? "true" : "false",
+      recvDmrEnabled     ? "true" : "false",
+      recvEspnow2Enabled ? "true" : "false");
     webServer.send(200, "application/json", buf);
   });
 
   webServer.on("/api/espnow/modes", HTTP_POST, []() {
     if (webServer.hasArg("pocsag"))
-      recvPocsagEnabled = (webServer.arg("pocsag") == "1");
+      recvPocsagEnabled  = (webServer.arg("pocsag")  == "1");
+    if (webServer.hasArg("dmr"))
+      recvDmrEnabled     = (webServer.arg("dmr")     == "1");
+    if (webServer.hasArg("espnow2"))
+      recvEspnow2Enabled = (webServer.arg("espnow2") == "1");
     saveSettings();
     webServer.send(200, "application/json", "{\"ok\":true}");
   });

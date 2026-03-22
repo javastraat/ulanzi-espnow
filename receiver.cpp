@@ -153,8 +153,26 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 // TODO: implement display/message handling for v2 packet types
 
 static void processEspNowV2Packet(const uint8_t* data, int len) {
-  // placeholder — v2 protocol not yet implemented
-  LOG("[RX-V2] Received %d bytes (not yet handled)\n", len);
+  if (len < 20) { LOG("[RX-V2] Packet too short (%d bytes)\n", len); return; }
+  uint8_t  ttl      = data[1];
+  uint32_t msgId    = (uint32_t)data[2] | ((uint32_t)data[3] << 8)
+                    | ((uint32_t)data[4] << 16) | ((uint32_t)data[5] << 24);
+  const uint8_t* relay = data + 12;  // bytes [12-17] — node that forwarded to us
+  uint8_t  appId    = data[18];
+  uint8_t  msgLen   = data[19];
+  if (20 + msgLen > len) msgLen = len - 20;
+  char msg[65] = {};
+  memcpy(msg, data + 20, msgLen);
+
+  LOG("[RX-V2] type=0x%02X msgId=%u ttl=%d appId=%d relay=%02X:%02X:%02X:%02X:%02X:%02X msg(%d)=\"%s\"\n",
+    data[0], msgId, ttl, appId,
+    relay[0], relay[1], relay[2], relay[3], relay[4], relay[5],
+    msgLen, msg);
+
+#if RECV_POCSAG
+  if (recvEspnow2Enabled && msgLen > 0)
+    injectDisplayMessage(msg, nullptr, true, 0);
+#endif
 }
 
 #endif  // RECV_ESPNOW2
@@ -167,7 +185,7 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 
   // ── DMR packet ──────────────────────────────────────────────────────────────
 #if RECV_DMR
-  if (type == ESPNOW_TYPE_DMR_NET) {
+  if (type == ESPNOW_TYPE_DMR_NET && recvDmrEnabled) {
     EspNowDmrNetPacket pkt = {};
     memcpy(&pkt, inData, (inLen < (int)sizeof(pkt)) ? inLen : sizeof(pkt));
 
@@ -245,8 +263,11 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 #endif  // RECV_POCSAG
 
 #if RECV_ESPNOW2
+  if (type == ESPNOWV2_TYPE_DATA) {
+
   // TODO: add ESPNOW_TYPE_V2 once packet type byte is defined
   processEspNowV2Packet(inData, inLen);
+  }
   return;
 #endif
 

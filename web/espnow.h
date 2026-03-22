@@ -79,33 +79,28 @@ static const char PAGE_ESPNOW[] PROGMEM =
       </label>
     </div>
 
-    <!-- DMR — disabled (compile-time off) -->
+    <!-- DMR -->
     <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:8px 0;border-bottom:1px solid var(--border-color);opacity:.4">
+                padding:8px 0;border-bottom:1px solid var(--border-color)">
       <div>
         <div style="font-weight:600;font-size:.92em">DMR</div>
         <div style="font-size:.78em;color:var(--text-muted)">Raw DMRD Homebrew via ESP-NOW</div>
       </div>
-      <label class="switch" style="pointer-events:none">
-        <input type="checkbox" disabled>
+      <label class="switch">
+        <input type="checkbox" id="tog-dmr" onchange="saveMode()">
         <span class="slider"></span>
       </label>
     </div>
 
-    <!-- ESP-NOW v2 — disabled (coming soon) -->
+    <!-- ESP-NOW v2 -->
     <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:8px 0;opacity:.4">
+                padding:8px 0">
       <div>
-        <div style="font-weight:600;font-size:.92em">
-          ESP-NOW v2
-          <span style="font-size:.72em;background:#555;color:#ccc;
-                       border-radius:3px;padding:1px 5px;margin-left:5px;
-                       vertical-align:middle">soon</span>
-        </div>
-        <div style="font-size:.78em;color:var(--text-muted)">Extended v2 protocol — coming soon</div>
+        <div style="font-weight:600;font-size:.92em">ESP-NOW v2</div>
+        <div style="font-size:.78em;color:var(--text-muted)">Extended v2 protocol</div>
       </div>
-      <label class="switch" style="pointer-events:none">
-        <input type="checkbox" disabled>
+      <label class="switch">
+        <input type="checkbox" id="tog-espnow2" onchange="saveMode()">
         <span class="slider"></span>
       </label>
     </div>
@@ -163,10 +158,14 @@ static const char PAGE_ESPNOW[] PROGMEM =
   }).catch(function(){});
   fetch('/api/espnow/modes').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-pocsag').checked=d.pocsag;
+    document.getElementById('tog-dmr').checked=d.dmr;
+    document.getElementById('tog-espnow2').checked=d.espnow2;
   }).catch(function(){});
 })();
 function saveMode(){
-  var body='pocsag='+(document.getElementById('tog-pocsag').checked?1:0);
+  var body='pocsag='+(document.getElementById('tog-pocsag').checked?1:0)
+          +'&dmr='+(document.getElementById('tog-dmr').checked?1:0)
+          +'&espnow2='+(document.getElementById('tog-espnow2').checked?1:0);
   fetch('/api/espnow/modes',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
   .then(function(r){return r.json();}).then(function(d){

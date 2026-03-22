@@ -18,6 +18,8 @@
 
 #define ESPNOW_TYPE_DMR_NET  0x10
 #define ESPNOW_TYPE_POCSAG   0x11
+#define ESPNOWV2_TYPE_DATA   0x15
+
 
 #define POCSAG_MSG_MAX_LEN       80
 #define FUNCTIONAL_NUMERIC        0
@@ -201,7 +203,9 @@ extern unsigned long iconPreviewUntil;
 
 // ── ESP-NOW protocol mode (runtime enable) ───────────────────────────────────
 
-extern bool recvPocsagEnabled;  // POCSAG processing on/off at runtime
+extern bool recvPocsagEnabled;   // POCSAG processing on/off at runtime
+extern bool recvDmrEnabled;      // DMR processing on/off at runtime
+extern bool recvEspnow2Enabled;  // ESP-NOW v2 processing on/off at runtime
 
 // ── ESP-NOW / POCSAG RIC settings ────────────────────────────────────────────
 

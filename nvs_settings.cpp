@@ -132,7 +132,9 @@ void loadSettings() {
   // Indicators
   indicatorsEnabled = p.getBool("ind_en", true);
   // Protocol mode
-  recvPocsagEnabled = p.getBool("recv_pocsag", true);
+  recvPocsagEnabled  = p.getBool("recv_pocsag",  true);
+  recvDmrEnabled     = p.getBool("recv_dmr",     false);
+  recvEspnow2Enabled = p.getBool("recv_espnow2", false);
   // POCSAG RIC settings
   timePocRic  = p.getUInt("ric_time",  TIME_POCSAG_RIC);
   callsignRic = p.getUInt("ric_call",  CALLSIGN_RIC);
@@ -225,7 +227,9 @@ void saveSettings() {
   // Indicators
   p.putBool("ind_en", indicatorsEnabled);
   // Protocol mode
-  p.putBool("recv_pocsag", recvPocsagEnabled);
+  p.putBool("recv_pocsag",  recvPocsagEnabled);
+  p.putBool("recv_dmr",     recvDmrEnabled);
+  p.putBool("recv_espnow2", recvEspnow2Enabled);
   // POCSAG RIC settings
   p.putUInt("ric_time",  timePocRic);
   p.putUInt("ric_call",  callsignRic);

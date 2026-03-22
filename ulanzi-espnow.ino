@@ -165,7 +165,9 @@ char          iconPreviewFile[32] = "";
 unsigned long iconPreviewUntil    = 0;
 
 // ESP-NOW protocol mode
-bool recvPocsagEnabled = true;
+bool recvPocsagEnabled  = true;
+bool recvDmrEnabled     = false;
+bool recvEspnow2Enabled = false;
 
 // Indicators (AWTRIX3-style right-edge status dots)
 bool          indicatorsEnabled    = true;
