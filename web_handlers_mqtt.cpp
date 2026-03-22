@@ -11,6 +11,25 @@ void registerMqttHandlers() {
     webServer.send_P(200, "text/html", PAGE_MQTT);
   });
 
+  webServer.on("/api/hass/log", HTTP_GET, []() {
+    char buf[1024]; int n = 0;
+    n += snprintf(buf + n, sizeof(buf) - n, "{\"count\":%lu,\"log\":[", (unsigned long)wsCountMqtt);
+    for (int i = 0; i < (int)wsMqttFill; i++) {
+      int idx = ((int)wsMqttHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      char safe[POCSAG_MSG_MAX_LEN * 2 + 1]; int si = 0;
+      for (int j = 0; wsMqttLog[idx].msg[j] && si < (int)sizeof(safe) - 2; j++) {
+        char c = wsMqttLog[idx].msg[j];
+        if (c == '"' || c == '\\') safe[si++] = '\\';
+        safe[si++] = c;
+      }
+      safe[si] = '\0';
+      if (i > 0) n += snprintf(buf + n, sizeof(buf) - n, ",");
+      n += snprintf(buf + n, sizeof(buf) - n, "{\"msg\":\"%s\",\"ts\":\"%s\"}", safe, wsMqttLog[idx].ts);
+    }
+    snprintf(buf + n, sizeof(buf) - n, "]}");
+    webServer.send(200, "application/json", buf);
+  });
+
   webServer.on("/api/mqtt", HTTP_GET, []() {
     char buf[512];
     snprintf(buf, sizeof(buf),

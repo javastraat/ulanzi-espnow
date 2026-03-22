@@ -44,6 +44,11 @@ struct WsPocsagEntry {
   char     ts[9];   // "HH:MM:SS" or "" if time unknown
 };
 
+struct WsMsgEntry {
+  char     msg[POCSAG_MSG_MAX_LEN + 1];
+  char     ts[9];   // "HH:MM:SS" or "" if time unknown
+};
+
 struct WsEspNow2Entry {
   char     msg[POCSAG_MSG_MAX_LEN + 1];
   char     ts[9];        // "HH:MM:SS" or "" if time unknown
@@ -167,6 +172,16 @@ extern WsEspNow2Entry wsEspNow2Log[POCSAG_LOG_SIZE];
 extern uint8_t        wsEspNow2Head;
 extern uint8_t        wsEspNow2Fill;
 #endif
+
+extern uint32_t   wsCountWeb;
+extern WsMsgEntry wsWebLog[POCSAG_LOG_SIZE];
+extern uint8_t    wsWebHead;
+extern uint8_t    wsWebFill;
+
+extern uint32_t   wsCountMqtt;
+extern WsMsgEntry wsMqttLog[POCSAG_LOG_SIZE];
+extern uint8_t    wsMqttHead;
+extern uint8_t    wsMqttFill;
 
 // ── Shared runtime state ──────────────────────────────────────────────────────
 

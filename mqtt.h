@@ -19,6 +19,8 @@ extern char     mqttHaName[32];   // NVS: "mqtt_ha_name" Home Assistant device n
 void        initMqttTask();        // start FreeRTOS task (call from setup after WiFi)
 void        mqttNotifyPocsag();    // immediate POCSAG publish (call from processPocsagPacket)
 void        mqttNotifyEspNow2();   // immediate ESP-NOW v2 publish
+void        mqttNotifyWebMsg();    // immediate web message publish
+void        mqttNotifyHassMsg();   // immediate MQTT/HA message publish
 void        mqttNotifyState();     // request immediate state publish (safe to call from any task)
 void        mqttRequestReconnect();// drop + reconnect (call after config change)
 bool        mqttIsConnected();

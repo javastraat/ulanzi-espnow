@@ -137,6 +137,16 @@ WsEspNow2Entry wsEspNow2Log[POCSAG_LOG_SIZE] = {};
 uint8_t        wsEspNow2Head = 0;
 uint8_t        wsEspNow2Fill = 0;
 #endif
+
+uint32_t   wsCountWeb  = 0;
+WsMsgEntry wsWebLog[POCSAG_LOG_SIZE]  = {};
+uint8_t    wsWebHead   = 0;
+uint8_t    wsWebFill   = 0;
+
+uint32_t   wsCountMqtt = 0;
+WsMsgEntry wsMqttLog[POCSAG_LOG_SIZE] = {};
+uint8_t    wsMqttHead  = 0;
+uint8_t    wsMqttFill  = 0;
 WebServer     webServer(80);
 QueueHandle_t pocsagRxQueue  = nullptr;
 

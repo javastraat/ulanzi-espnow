@@ -49,6 +49,8 @@ static const char PAGE_MAIN[] PROGMEM =
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
     <div class="metric"><span class="metric-label">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
     <div class="metric"><span class="metric-label">ESP-NOW v2 Received</span><span class="metric-value" id="v2c">-</span></div>
+    <div class="metric"><span class="metric-label">Web Messages</span><span class="metric-value" id="webc">-</span></div>
+    <div class="metric"><span class="metric-label">MQTT / HA Messages</span><span class="metric-value" id="hassc">-</span></div>
   </div>
 
   <div class="card" style="grid-column:1/-1">
@@ -59,6 +61,16 @@ static const char PAGE_MAIN[] PROGMEM =
   <div class="card" style="grid-column:1/-1">
     <h3>Last ESP-NOW v2</h3>
     <div id="v2-log"><span style="color:#888">none yet</span></div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <h3>Last Web Message</h3>
+    <div id="web-log"><span style="color:#888">none yet</span></div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <h3>Last MQTT / HA Message</h3>
+    <div id="hass-log"><span style="color:#888">none yet</span></div>
   </div>
 
 </div></div>
@@ -113,6 +125,20 @@ function poll(){
       renderLog('v2-log', v.log||[], function(r){
         return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
               +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">App '+r.appId+'</td>'
+              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+      });
+    }).catch(function(){});
+    fetch('/api/web/log').then(function(r){return r.json();}).then(function(v){
+      document.getElementById('webc').textContent=v.count||0;
+      renderLog('web-log', v.log||[], function(r){
+        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
+              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+      });
+    }).catch(function(){});
+    fetch('/api/hass/log').then(function(r){return r.json();}).then(function(v){
+      document.getElementById('hassc').textContent=v.count||0;
+      renderLog('hass-log', v.log||[], function(r){
+        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
               +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
       });
     }).catch(function(){});

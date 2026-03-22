@@ -264,7 +264,7 @@ void registerDisplayHandlers() {
     const char* iconPtr = icon.length() ? icon.c_str()
                         : iconWebFile[0]  ? iconWebFile
                         : iconPocsagFile[0] ? iconPocsagFile : nullptr;
-    if (!injectDisplayMessage(text.c_str(), iconPtr, beep, 1337)) {
+    if (!injectWebMessage(text.c_str(), iconPtr, beep)) {
       webServer.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid message\"}");
       return;
     }
@@ -272,6 +272,25 @@ void registerDisplayHandlers() {
 #else
     webServer.send(501, "application/json", "{\"ok\":false,\"error\":\"RECV_POCSAG disabled\"}");
 #endif
+  });
+
+  webServer.on("/api/web/log", HTTP_GET, []() {
+    char buf[1024]; int n = 0;
+    n += snprintf(buf + n, sizeof(buf) - n, "{\"count\":%lu,\"log\":[", (unsigned long)wsCountWeb);
+    for (int i = 0; i < (int)wsWebFill; i++) {
+      int idx = ((int)wsWebHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      char safe[POCSAG_MSG_MAX_LEN * 2 + 1]; int si = 0;
+      for (int j = 0; wsWebLog[idx].msg[j] && si < (int)sizeof(safe) - 2; j++) {
+        char c = wsWebLog[idx].msg[j];
+        if (c == '"' || c == '\\') safe[si++] = '\\';
+        safe[si++] = c;
+      }
+      safe[si] = '\0';
+      if (i > 0) n += snprintf(buf + n, sizeof(buf) - n, ",");
+      n += snprintf(buf + n, sizeof(buf) - n, "{\"msg\":\"%s\",\"ts\":\"%s\"}", safe, wsWebLog[idx].ts);
+    }
+    snprintf(buf + n, sizeof(buf) - n, "]}");
+    webServer.send(200, "application/json", buf);
   });
 
   webServer.on("/api/screensaver", HTTP_GET, []() {

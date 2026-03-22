@@ -72,6 +72,33 @@ bool injectDisplayMessage(const char* text, const char* iconFile, bool beep, uin
   return true;
 }
 
+static void _logMsgEntry(WsMsgEntry* log, uint8_t& head, uint8_t& fill, uint32_t& count, const char* msg) {
+  strncpy(log[head].msg, msg, POCSAG_MSG_MAX_LEN);
+  log[head].msg[POCSAG_MSG_MAX_LEN] = '\0';
+  { struct tm t; if (getLocalTime(&t)) snprintf(log[head].ts, 9, "%02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec); else log[head].ts[0] = '\0'; }
+  head = (head + 1) % POCSAG_LOG_SIZE;
+  if (fill < POCSAG_LOG_SIZE) fill++;
+  count++;
+}
+
+bool injectWebMessage(const char* text, const char* iconFile, bool beep) {
+  if (!text || text[0] == '\0') return false;
+  applyDisplayMessageState(text, iconFile, beep);
+  _logMsgEntry(wsWebLog, wsWebHead, wsWebFill, wsCountWeb, pocsagMsg);
+  mqttNotifyWebMsg();
+  LOG("[WEB] Message: '%s'\n", pocsagMsg);
+  return true;
+}
+
+bool injectMqttMessage(const char* text, const char* iconFile, bool beep) {
+  if (!text || text[0] == '\0') return false;
+  applyDisplayMessageState(text, iconFile, beep);
+  _logMsgEntry(wsMqttLog, wsMqttHead, wsMqttFill, wsCountMqtt, pocsagMsg);
+  mqttNotifyHassMsg();
+  LOG("[MQTT] Message: '%s'\n", pocsagMsg);
+  return true;
+}
+
 static const char* functionalNameRx(uint8_t f) {
   switch (f) {
     case 0: return "NUMERIC";

@@ -94,6 +94,8 @@ static unsigned long _lastState       = 0;
 static volatile bool _statePending    = false;  // set by mqttNotifyState(), drained by task
 static volatile bool _pocsagPending   = false;  // set by mqttNotifyPocsag(), drained by task
 static volatile bool _espnow2Pending  = false;  // set by mqttNotifyEspNow2(), drained by task
+static volatile bool _webMsgPending   = false;  // set by mqttNotifyWebMsg(), drained by task
+static volatile bool _hassMsgPending  = false;  // set by mqttNotifyHassMsg(), drained by task
 
 // ── Topic helpers ──────────────────────────────────────────────────────────────
 // state:   {nodeId}/{component}/{id}/state
@@ -719,7 +721,7 @@ static void _callback(char* topic, byte* payload, unsigned int length) {
     const char* mqttIconPtr = icon.length() ? icon.c_str()
                             : iconHassFile[0]   ? iconHassFile
                             : iconPocsagFile[0] ? iconPocsagFile : nullptr;
-    if (text.length() && injectDisplayMessage(text.c_str(), mqttIconPtr, beep, 4277)) {
+    if (text.length() && injectMqttMessage(text.c_str(), mqttIconPtr, beep)) {
       LOG("[MQTT] display_message injected\n");
     } else {
       LOG("[MQTT] display_message ignored (empty/invalid)\n");
@@ -852,6 +854,24 @@ static void mqttTaskFn(void*) {
 #endif
     }
 
+    // Immediate web message publish
+    if (_webMsgPending) {
+      _webMsgPending = false;
+      int last = ((int)wsWebHead - 1 + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      if (wsWebFill > 0) _pubStr("sensor", "web_msg", wsWebLog[last].msg);
+      char wbuf[16]; snprintf(wbuf, sizeof(wbuf), "%lu", (unsigned long)wsCountWeb);
+      _pubStr("sensor", "web_count", wbuf);
+    }
+
+    // Immediate MQTT/HA message publish
+    if (_hassMsgPending) {
+      _hassMsgPending = false;
+      int last = ((int)wsMqttHead - 1 + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      if (wsMqttFill > 0) _pubStr("sensor", "hass_msg", wsMqttLog[last].msg);
+      char hbuf[16]; snprintf(hbuf, sizeof(hbuf), "%lu", (unsigned long)wsCountMqtt);
+      _pubStr("sensor", "hass_count", hbuf);
+    }
+
     // Immediate state publish requested from web handlers
     if (_statePending) {
       _statePending = false;
@@ -883,6 +903,14 @@ void mqttNotifyPocsag() {
 
 void mqttNotifyEspNow2() {
   if (mqttEnabled) _espnow2Pending = true;
+}
+
+void mqttNotifyWebMsg() {
+  if (mqttEnabled) _webMsgPending = true;
+}
+
+void mqttNotifyHassMsg() {
+  if (mqttEnabled) _hassMsgPending = true;
 }
 
 void mqttNotifyState() {
