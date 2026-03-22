@@ -115,31 +115,36 @@ function poll(){
     }
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;
+    var TC='style="color:#888;white-space:nowrap;width:1px;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace"';
+    var TL='style="color:#888;white-space:nowrap;width:1px;padding:2px 8px 2px 0;vertical-align:top"';
+    var TM='style="padding:2px 0;word-break:break-all;vertical-align:top"';
     renderLog('poc-log', d.pocsag_log||[], function(r){
-      return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
-            +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">RIC '+r.ric+'</td>'
-            +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+      return '<td '+TC+'>'+(r.ts||'--:--:--')+'</td>'
+            +'<td '+TL+'>RIC '+r.ric+'</td>'
+            +'<td '+TM+'>'+r.msg+'</td>';
     });
     fetch('/api/espnow/v2log').then(function(r){return r.json();}).then(function(v){
       document.getElementById('v2c').textContent=v.count||0;
       renderLog('v2-log', v.log||[], function(r){
-        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
-              +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">App '+r.appId+'</td>'
-              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+        return '<td '+TC+'>'+(r.ts||'--:--:--')+'</td>'
+              +'<td '+TL+'>App '+r.appId+'</td>'
+              +'<td '+TM+'>'+r.msg+'</td>';
       });
     }).catch(function(){});
     fetch('/api/web/log').then(function(r){return r.json();}).then(function(v){
       document.getElementById('webc').textContent=v.count||0;
       renderLog('web-log', v.log||[], function(r){
-        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
-              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+        return '<td '+TC+'>'+(r.ts||'--:--:--')+'</td>'
+              +'<td '+TL+'>Web</td>'
+              +'<td '+TM+'>'+r.msg+'</td>';
       });
     }).catch(function(){});
     fetch('/api/hass/log').then(function(r){return r.json();}).then(function(v){
       document.getElementById('hassc').textContent=v.count||0;
       renderLog('hass-log', v.log||[], function(r){
-        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
-              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+        return '<td '+TC+'>'+(r.ts||'--:--:--')+'</td>'
+              +'<td '+TL+'>HA</td>'
+              +'<td '+TM+'>'+r.msg+'</td>';
       });
     }).catch(function(){});
     var pct=d.battery_pct,mv=d.battery_mv;

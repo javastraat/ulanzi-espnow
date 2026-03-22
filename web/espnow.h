@@ -128,6 +128,26 @@ static const char PAGE_ESPNOW[] PROGMEM =
     <div id="v2-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
   </div>
 
+  <!-- Card 5: Web Messages -->
+  <div class="card">
+    <h3>Web Messages</h3>
+    <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
+      <span class="metric-label">Received</span>
+      <span class="metric-value" id="web-count">-</span>
+    </div>
+    <div id="web-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
+  </div>
+
+  <!-- Card 6: MQTT / HA Messages -->
+  <div class="card">
+    <h3>MQTT / HA Messages</h3>
+    <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
+      <span class="metric-label">Received</span>
+      <span class="metric-value" id="hass-count">-</span>
+    </div>
+    <div id="hass-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
@@ -137,22 +157,41 @@ static const char PAGE_ESPNOW[] PROGMEM =
   pollAll();
   setInterval(pollAll, 3000);
   function pollAll(){
+    var TC='style="color:var(--text-muted);white-space:nowrap;width:1px;padding:4px 10px 4px 0;vertical-align:top;font-family:monospace"';
+    var TL='style="color:var(--text-muted);white-space:nowrap;width:1px;padding:4px 10px 4px 0;vertical-align:top"';
+    var TM='style="padding:4px 0;word-break:break-all;vertical-align:top"';
     fetch('/api/status').then(function(r){return r.json();}).then(function(d){
       document.getElementById('h1').textContent=d.hostname;
       document.getElementById('sub').textContent=d.ip;
       document.getElementById('poc-count').textContent=d.pocsag_count||0;
       renderLog('poc-log', d.pocsag_log||[], function(row){
-        return '<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">'+(row.ts||'')+'</td>'
-              +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">RIC '+row.ric+'</td>'
-              +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(row.msg)+'</td>';
+        return '<td '+TC+'>'+(row.ts||'')+'</td>'
+              +'<td '+TL+'>RIC '+row.ric+'</td>'
+              +'<td '+TM+'>'+escHtml(row.msg)+'</td>';
       });
     }).catch(function(){});
     fetch('/api/espnow/v2log').then(function(r){return r.json();}).then(function(d){
       document.getElementById('v2-count').textContent=d.count||0;
       renderLog('v2-log', d.log||[], function(row){
-        return '<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">'+(row.ts||'')+'</td>'
-              +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">App '+row.appId+'</td>'
-              +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(row.msg)+'</td>';
+        return '<td '+TC+'>'+(row.ts||'')+'</td>'
+              +'<td '+TL+'>App '+row.appId+'</td>'
+              +'<td '+TM+'>'+escHtml(row.msg)+'</td>';
+      });
+    }).catch(function(){});
+    fetch('/api/web/log').then(function(r){return r.json();}).then(function(d){
+      document.getElementById('web-count').textContent=d.count||0;
+      renderLog('web-log', d.log||[], function(row){
+        return '<td '+TC+'>'+(row.ts||'')+'</td>'
+              +'<td '+TL+'>Web</td>'
+              +'<td '+TM+'>'+escHtml(row.msg)+'</td>';
+      });
+    }).catch(function(){});
+    fetch('/api/hass/log').then(function(r){return r.json();}).then(function(d){
+      document.getElementById('hass-count').textContent=d.count||0;
+      renderLog('hass-log', d.log||[], function(row){
+        return '<td '+TC+'>'+(row.ts||'')+'</td>'
+              +'<td '+TL+'>HA</td>'
+              +'<td '+TM+'>'+escHtml(row.msg)+'</td>';
       });
     }).catch(function(){});
   }
