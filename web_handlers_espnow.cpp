@@ -26,6 +26,39 @@ void registerEspNowHandlers() {
     webServer.send(200, "application/json", "{\"ok\":true}");
   });
 
+  webServer.on("/api/espnow/v2log", HTTP_GET, []() {
+#if RECV_ESPNOW2
+    char buf[1024];
+    int n = 0;
+    n += snprintf(buf + n, sizeof(buf) - n, "{\"count\":%lu,\"log\":[", (unsigned long)wsCountEspNow2);
+    bool first = true;
+    for (int i = 0; i < (int)wsEspNow2Fill; i++) {
+      int idx = ((int)wsEspNow2Head - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      if (!first) n += snprintf(buf + n, sizeof(buf) - n, ",");
+      first = false;
+      // Escape message for JSON
+      char safe[POCSAG_MSG_MAX_LEN * 2 + 1]; int si = 0;
+      for (int j = 0; wsEspNow2Log[idx].msg[j] && si < (int)sizeof(safe) - 2; j++) {
+        char c = wsEspNow2Log[idx].msg[j];
+        if (c == '"' || c == '\\') safe[si++] = '\\';
+        safe[si++] = c;
+      }
+      safe[si] = '\0';
+      n += snprintf(buf + n, sizeof(buf) - n,
+        "{\"msg\":\"%s\",\"ts\":\"%s\",\"appId\":%u,\"msgId\":%lu,\"ttl\":%u,\"relay\":\"%s\"}",
+        safe, wsEspNow2Log[idx].ts,
+        wsEspNow2Log[idx].appId,
+        (unsigned long)wsEspNow2Log[idx].msgId,
+        wsEspNow2Log[idx].ttl,
+        wsEspNow2Log[idx].relay);
+    }
+    snprintf(buf + n, sizeof(buf) - n, "]}");
+    webServer.send(200, "application/json", buf);
+#else
+    webServer.send(200, "application/json", "{\"count\":0,\"log\":[]}");
+#endif
+  });
+
   webServer.on("/api/espnow", HTTP_GET, []() {
     // Build excluded RICs JSON array
     String excl = "[";

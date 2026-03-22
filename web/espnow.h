@@ -108,14 +108,24 @@ static const char PAGE_ESPNOW[] PROGMEM =
     <div id="mode-status" style="font-size:.82em;color:#4caf50;min-height:1.2em;padding-top:6px"></div>
   </div>
 
-  <!-- Card 3: Received Messages -->
+  <!-- Card 3: POCSAG Messages -->
   <div class="card">
-    <h3>Received Messages</h3>
+    <h3>POCSAG Messages</h3>
     <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
-      <span class="metric-label">POCSAG received</span>
+      <span class="metric-label">Received</span>
       <span class="metric-value" id="poc-count">-</span>
     </div>
-    <div id="msg-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
+    <div id="poc-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
+  </div>
+
+  <!-- Card 4: ESP-NOW v2 Messages -->
+  <div class="card">
+    <h3>ESP-NOW v2 Messages</h3>
+    <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
+      <span class="metric-label">Received</span>
+      <span class="metric-value" id="v2-count">-</span>
+    </div>
+    <div id="v2-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
   </div>
 
 </div></div>
@@ -124,29 +134,39 @@ static const char PAGE_ESPNOW[] PROGMEM =
   R"html(
 <script>
 (function init(){
-  pollStatus();
-  setInterval(pollStatus, 3000);
-  function pollStatus(){
+  pollAll();
+  setInterval(pollAll, 3000);
+  function pollAll(){
     fetch('/api/status').then(function(r){return r.json();}).then(function(d){
       document.getElementById('h1').textContent=d.hostname;
       document.getElementById('sub').textContent=d.ip;
       document.getElementById('poc-count').textContent=d.pocsag_count||0;
-      var log=d.pocsag_log||[];
-      var el=document.getElementById('msg-log');
-      if(!log.length){
-        el.innerHTML='<span style="color:var(--text-muted);font-size:.85em">No messages yet.</span>';
-      } else {
-        var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
-        for(var i=0;i<log.length;i++){
-          html+='<tr style="border-bottom:1px solid var(--border-color)">'
-            +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">RIC '+log[i].ric+'</td>'
-            +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(log[i].msg)+'</td>'
-            +'</tr>';
-        }
-        html+='</table>';
-        el.innerHTML=html;
-      }
+      renderLog('poc-log', d.pocsag_log||[], function(row){
+        return '<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">'+(row.ts||'')+'</td>'
+              +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">RIC '+row.ric+'</td>'
+              +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(row.msg)+'</td>';
+      });
     }).catch(function(){});
+    fetch('/api/espnow/v2log').then(function(r){return r.json();}).then(function(d){
+      document.getElementById('v2-count').textContent=d.count||0;
+      renderLog('v2-log', d.log||[], function(row){
+        return '<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">'+(row.ts||'')+'</td>'
+              +'<td style="color:var(--text-muted);white-space:nowrap;padding:4px 10px 4px 0;vertical-align:top">App '+row.appId+'</td>'
+              +'<td style="padding:4px 0;word-break:break-all;font-family:monospace">'+escHtml(row.msg)+'</td>';
+      });
+    }).catch(function(){});
+  }
+  function renderLog(elId, log, rowFn){
+    var el=document.getElementById(elId);
+    if(!log.length){
+      el.innerHTML='<span style="color:var(--text-muted);font-size:.85em">No messages yet.</span>';
+    } else {
+      var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
+      for(var i=0;i<log.length;i++)
+        html+='<tr style="border-bottom:1px solid var(--border-color)">'+rowFn(log[i])+'</tr>';
+      html+='</table>';
+      el.innerHTML=html;
+    }
   }
   function escHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

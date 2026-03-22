@@ -48,6 +48,7 @@ static const char PAGE_MAIN[] PROGMEM =
     <h3>ESP-NOW</h3>
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
     <div class="metric"><span class="metric-label">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
+    <div class="metric"><span class="metric-label">ESP-NOW v2 Received</span><span class="metric-value" id="v2c">-</span></div>
   </div>
 
   <div class="card" style="grid-column:1/-1">
@@ -55,11 +56,23 @@ static const char PAGE_MAIN[] PROGMEM =
     <div id="poc-log"><span style="color:#888">none yet</span></div>
   </div>
 
+  <div class="card" style="grid-column:1/-1">
+    <h3>Last ESP-NOW v2</h3>
+    <div id="v2-log"><span style="color:#888">none yet</span></div>
+  </div>
+
 </div></div>
 )html"
   "<script>" COMMON_JS NAV_LIVE_JS "</script>"
   R"html(
 <script>
+function renderLog(elId,log,rowFn){
+  var el=document.getElementById(elId);
+  if(!log.length){el.innerHTML='<span style="color:#888">none yet</span>';return;}
+  var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
+  for(var i=0;i<log.length;i++) html+='<tr>'+rowFn(log[i])+'</tr>';
+  el.innerHTML=html+'</table>';
+}
 function pressBtn(name){
   fetch('/api/btn/'+name,{method:'POST'}).catch(function(){});
 }
@@ -90,21 +103,19 @@ function poll(){
     }
     document.getElementById('dmr').textContent=d.dmr_count;
     document.getElementById('poc').textContent=d.pocsag_count;
-    var log=d.pocsag_log||[];
-    var el=document.getElementById('poc-log');
-    if(!log.length){
-      el.innerHTML='<span style="color:#888">none yet</span>';
-    } else {
-      var html='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
-      for(var i=0;i<log.length;i++){
-        html+='<tr>'
-          +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(log[i].ts||'--:--:--')+'</td>'
-          +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">RIC '+log[i].ric+'</td>'
-          +'<td style="padding:2px 0;word-break:break-all">'+log[i].msg+'</td>'
-          +'</tr>';
-      }
-      el.innerHTML=html+'</table>';
-    }
+    renderLog('poc-log', d.pocsag_log||[], function(r){
+      return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
+            +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">RIC '+r.ric+'</td>'
+            +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+    });
+    fetch('/api/espnow/v2log').then(function(r){return r.json();}).then(function(v){
+      document.getElementById('v2c').textContent=v.count||0;
+      renderLog('v2-log', v.log||[], function(r){
+        return '<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top;font-family:monospace">'+(r.ts||'--:--:--')+'</td>'
+              +'<td style="color:#888;white-space:nowrap;padding:2px 8px 2px 0;vertical-align:top">App '+r.appId+'</td>'
+              +'<td style="padding:2px 0;word-break:break-all">'+r.msg+'</td>';
+      });
+    }).catch(function(){});
     var pct=d.battery_pct,mv=d.battery_mv;
     var bc=pct>=60?'badge-success':pct>=30?'badge-warning':'badge-danger';
     document.getElementById('bat').innerHTML=

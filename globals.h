@@ -44,6 +44,15 @@ struct WsPocsagEntry {
   char     ts[9];   // "HH:MM:SS" or "" if time unknown
 };
 
+struct WsEspNow2Entry {
+  char     msg[POCSAG_MSG_MAX_LEN + 1];
+  char     ts[9];        // "HH:MM:SS" or "" if time unknown
+  uint32_t msgId;
+  uint8_t  appId;
+  uint8_t  ttl;
+  char     relay[18];    // "XX:XX:XX:XX:XX:XX"
+};
+
 // ── LED matrix ────────────────────────────────────────────────────────────────
 
 #define NUM_LEDS      256
@@ -151,6 +160,13 @@ extern uint32_t      wsCountPocsag;
 extern WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE];
 extern uint8_t       wsPocsagHead;
 extern uint8_t       wsPocsagFill;
+
+#if RECV_ESPNOW2
+extern uint32_t       wsCountEspNow2;
+extern WsEspNow2Entry wsEspNow2Log[POCSAG_LOG_SIZE];
+extern uint8_t        wsEspNow2Head;
+extern uint8_t        wsEspNow2Fill;
+#endif
 
 // ── Shared runtime state ──────────────────────────────────────────────────────
 

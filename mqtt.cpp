@@ -93,6 +93,7 @@ static unsigned long _lastReconnect   = 0;
 static unsigned long _lastState       = 0;
 static volatile bool _statePending    = false;  // set by mqttNotifyState(), drained by task
 static volatile bool _pocsagPending   = false;  // set by mqttNotifyPocsag(), drained by task
+static volatile bool _espnow2Pending  = false;  // set by mqttNotifyEspNow2(), drained by task
 
 // ── Topic helpers ──────────────────────────────────────────────────────────────
 // state:   {nodeId}/{component}/{id}/state
@@ -837,6 +838,20 @@ static void mqttTaskFn(void*) {
 #endif
     }
 
+    // Immediate ESP-NOW v2 publish
+    if (_espnow2Pending) {
+      _espnow2Pending = false;
+#if RECV_ESPNOW2
+      // Publish the last received v2 message
+      int last = ((int)wsEspNow2Head - 1 + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      if (wsEspNow2Fill > 0)
+        _pubStr("sensor", "espnow2_msg", wsEspNow2Log[last].msg);
+      char ebuf[16];
+      snprintf(ebuf, sizeof(ebuf), "%lu", (unsigned long)wsCountEspNow2);
+      _pubStr("sensor", "espnow2_count", ebuf);
+#endif
+    }
+
     // Immediate state publish requested from web handlers
     if (_statePending) {
       _statePending = false;
@@ -864,6 +879,10 @@ void initMqttTask() {
 
 void mqttNotifyPocsag() {
   if (mqttEnabled) _pocsagPending = true;
+}
+
+void mqttNotifyEspNow2() {
+  if (mqttEnabled) _espnow2Pending = true;
 }
 
 void mqttNotifyState() {

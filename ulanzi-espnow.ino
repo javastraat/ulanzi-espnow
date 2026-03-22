@@ -131,6 +131,12 @@ uint32_t      wsCountPocsag = 0;
 WsPocsagEntry wsPocsagLog[POCSAG_LOG_SIZE] = {};
 uint8_t       wsPocsagHead = 0;
 uint8_t       wsPocsagFill = 0;
+#if RECV_ESPNOW2
+uint32_t       wsCountEspNow2 = 0;
+WsEspNow2Entry wsEspNow2Log[POCSAG_LOG_SIZE] = {};
+uint8_t        wsEspNow2Head = 0;
+uint8_t        wsEspNow2Fill = 0;
+#endif
 WebServer     webServer(80);
 QueueHandle_t pocsagRxQueue  = nullptr;
 

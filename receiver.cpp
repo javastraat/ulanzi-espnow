@@ -148,16 +148,39 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 
 #if RECV_ESPNOW2
 
-// TODO: define EspNowV2Packet struct (must match sender side)
-// TODO: implement time sync from v2 time beacon
-// TODO: implement display/message handling for v2 packet types
+void injectEspNow2Message(const char* msg, uint32_t msgId, uint8_t appId, uint8_t ttl, const uint8_t* relay) {
+  if (!msg || msg[0] == '\0') return;
+
+  WsEspNow2Entry& e = wsEspNow2Log[wsEspNow2Head];
+  strncpy(e.msg, msg, POCSAG_MSG_MAX_LEN);
+  e.msg[POCSAG_MSG_MAX_LEN] = '\0';
+  e.msgId = msgId;
+  e.appId = appId;
+  e.ttl   = ttl;
+  if (relay)
+    snprintf(e.relay, sizeof(e.relay), "%02X:%02X:%02X:%02X:%02X:%02X",
+      relay[0], relay[1], relay[2], relay[3], relay[4], relay[5]);
+  else
+    e.relay[0] = '\0';
+  { struct tm t; if (getLocalTime(&t)) snprintf(e.ts, 9, "%02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec); else e.ts[0] = '\0'; }
+
+  wsEspNow2Head = (wsEspNow2Head + 1) % POCSAG_LOG_SIZE;
+  if (wsEspNow2Fill < POCSAG_LOG_SIZE) wsEspNow2Fill++;
+  wsCountEspNow2++;
+
+  mqttNotifyEspNow2();
+
+#if RECV_POCSAG
+  applyDisplayMessageState(msg, nullptr, true);
+#endif
+}
 
 static void processEspNowV2Packet(const uint8_t* data, int len) {
   if (len < 20) { LOG("[RX-V2] Packet too short (%d bytes)\n", len); return; }
   uint8_t  ttl      = data[1];
   uint32_t msgId    = (uint32_t)data[2] | ((uint32_t)data[3] << 8)
                     | ((uint32_t)data[4] << 16) | ((uint32_t)data[5] << 24);
-  const uint8_t* relay = data + 12;  // bytes [12-17] — node that forwarded to us
+  const uint8_t* relay = data + 12;
   uint8_t  appId    = data[18];
   uint8_t  msgLen   = data[19];
   if (20 + msgLen > len) msgLen = len - 20;
@@ -169,10 +192,8 @@ static void processEspNowV2Packet(const uint8_t* data, int len) {
     relay[0], relay[1], relay[2], relay[3], relay[4], relay[5],
     msgLen, msg);
 
-#if RECV_POCSAG
   if (recvEspnow2Enabled && msgLen > 0)
-    injectDisplayMessage(msg, nullptr, true, 0);
-#endif
+    injectEspNow2Message(msg, msgId, appId, ttl, relay);
 }
 
 #endif  // RECV_ESPNOW2
