@@ -38,7 +38,7 @@
 
 // ── Sanity checks ─────────────────────────────────────────────────────────────
 
-#if RECV_DMR == false && RECV_POCSAG == false
+#if RECV_DMR == false && RECV_POCSAG == false && RECV_ESPNOW2 == false
   #error "Enable at least one of RECV_DMR or RECV_POCSAG in config.h."
 #endif
 
@@ -53,7 +53,7 @@ String  wifiSlotSsid[WIFI_SLOT_COUNT];
 String  wifiSlotPass[WIFI_SLOT_COUNT];
 String  wifiApSsid     = "Ulanzi-AP";
 String  wifiApPassword = "ulanzi1234";
-uint8_t wifiApChannel  = 1;
+uint8_t wifiApChannel  = 1;  // SoftAP channel (1–13); set to your router's channel for best performance, or leave at 6 for widest compatibility with 2.4 GHz devices
 uint8_t wifiMaxRetries = 10;   // per-slot timeout = retries * 500 ms  (10 → 5 s)
 bool    softAPActive   = false;
 
