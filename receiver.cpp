@@ -242,6 +242,14 @@ static void processMeshPacket(const uint8_t* data, int len) {
 
   LOG("[MESH] appId=0x%02X msg=\"%s\"\n", p->appId, msg);
 
+  // Drop excluded appIds before touching the log
+  for (int i = 0; i < excludedAppIdsCount; i++) {
+    if (p->appId == excludedAppIds[i]) {
+      LOG("[MESH] appId=0x%02X excluded — not logged\n", p->appId);
+      return;
+    }
+  }
+
   // 0x05 = heartbeat — log to web, no display
   if (p->appId == 0x05) {
     LOG("[MESH] Heartbeat from %02X:%02X:%02X:%02X:%02X:%02X\n",

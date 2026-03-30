@@ -66,8 +66,9 @@
 // Default value used on first boot or after factory reset.
 #define EXCLUDED_RICS_DEFAULT "224,208,200,216,4520,4521"
 
-// Number of POCSAG messages kept in the web status log (newest first).
-#define POCSAG_LOG_SIZE          10
+// Number of messages kept in the web status log (newest first).
+#define POCSAG_LOG_SIZE          20   // total stored (ring buffer)
+#define POCSAG_LOG_WEB_MAX       10   // max entries served to the web UI
 
 // Reserved pixel columns for the POCSAG icon (icon width + 1 px gap).
 // Used by the scroll-threshold calculation and the display renderer.

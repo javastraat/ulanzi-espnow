@@ -28,14 +28,29 @@ void registerEspNowHandlers() {
 
   webServer.on("/api/espnow/v2log", HTTP_GET, []() {
 #if RECV_ESPNOW2
-    char buf[1024];
+    char buf[2048];
     int n = 0;
     n += snprintf(buf + n, sizeof(buf) - n, "{\"count\":%lu,\"log\":[", (unsigned long)wsCountEspNow2);
     bool first = true;
-    for (int i = 0; i < (int)wsEspNow2Fill; i++) {
+    uint32_t seenIds[POCSAG_LOG_SIZE] = {};
+    uint8_t  seenCount = 0;
+    int shown = 0;
+    for (int i = 0; i < (int)wsEspNow2Fill && shown < POCSAG_LOG_WEB_MAX; i++) {
       int idx = ((int)wsEspNow2Head - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      // Skip excluded appIds
+      bool appExcl = false;
+      for (int j = 0; j < excludedAppIdsCount; j++)
+        if (wsEspNow2Log[idx].appId == excludedAppIds[j]) { appExcl = true; break; }
+      if (appExcl) continue;
+      // Skip duplicate msgIds (same packet relayed multiple times)
+      bool dup = false;
+      for (int j = 0; j < seenCount; j++)
+        if (seenIds[j] == wsEspNow2Log[idx].msgId) { dup = true; break; }
+      if (dup) continue;
+      seenIds[seenCount++] = wsEspNow2Log[idx].msgId;
       if (!first) n += snprintf(buf + n, sizeof(buf) - n, ",");
       first = false;
+      shown++;
       // Escape message for JSON
       char safe[POCSAG_MSG_MAX_LEN * 2 + 1]; int si = 0;
       for (int j = 0; wsEspNow2Log[idx].msg[j] && si < (int)sizeof(safe) - 2; j++) {
@@ -68,12 +83,17 @@ void registerEspNowHandlers() {
     }
     excl += "]";
 
-    char buf[256];
+    String exclApps = "[";
+    for (int i = 0; i < excludedAppIdsCount; i++) { if (i) exclApps += ","; exclApps += String(excludedAppIds[i]); }
+    exclApps += "]";
+
+    char buf[320];
     snprintf(buf, sizeof(buf),
-      "{\"time_ric\":%lu,\"call_ric\":%lu,\"excl_rics\":%s}",
+      "{\"time_ric\":%lu,\"call_ric\":%lu,\"excl_rics\":%s,\"excl_appids\":%s}",
       (unsigned long)timePocRic,
       (unsigned long)callsignRic,
-      excl.c_str());
+      excl.c_str(),
+      exclApps.c_str());
     webServer.send(200, "application/json", buf);
   });
 
@@ -92,6 +112,19 @@ void registerEspNowHandlers() {
         if (i == (int)s.length() || s[i] == ',') {
           String tok = s.substring(start, i); tok.trim();
           if (tok.length() > 0) excludedRics[excludedRicsCount++] = (uint32_t)tok.toInt();
+          start = i + 1;
+        }
+      }
+    }
+
+    if (webServer.hasArg("excl_appids")) {
+      String s = webServer.arg("excl_appids");
+      excludedAppIdsCount = 0;
+      int start = 0;
+      for (int i = 0; i <= (int)s.length() && excludedAppIdsCount < EXCLUDED_APPIDS_MAX; i++) {
+        if (i == (int)s.length() || s[i] == ',') {
+          String tok = s.substring(start, i); tok.trim();
+          if (tok.length() > 0) excludedAppIds[excludedAppIdsCount++] = (uint8_t)tok.toInt();
           start = i + 1;
         }
       }

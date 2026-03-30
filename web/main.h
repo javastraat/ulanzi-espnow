@@ -48,7 +48,7 @@ static const char PAGE_MAIN[] PROGMEM =
     <h3>ESP-NOW</h3>
     <div class="metric"><span class="metric-label">DMR Received</span><span class="metric-value" id="dmr">-</span></div>
     <div class="metric"><span class="metric-label">POCSAG Received</span><span class="metric-value" id="poc">-</span></div>
-    <div class="metric"><span class="metric-label">ESP-NOW v2 Received</span><span class="metric-value" id="v2c">-</span></div>
+    <div class="metric"><span class="metric-label">UniversalMesh Received</span><span class="metric-value" id="v2c">-</span></div>
     <div class="metric"><span class="metric-label">Web Messages</span><span class="metric-value" id="webc">-</span></div>
     <div class="metric"><span class="metric-label">MQTT / HA Messages</span><span class="metric-value" id="hassc">-</span></div>
   </div>
@@ -59,7 +59,7 @@ static const char PAGE_MAIN[] PROGMEM =
   </div>
 
   <div class="card" style="grid-column:1/-1">
-    <h3>Last ESP-NOW v2</h3>
+    <h3>Last UniversalMesh</h3>
     <div id="v2-log"><span style="color:#888">none yet</span></div>
   </div>
 

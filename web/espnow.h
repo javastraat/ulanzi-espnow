@@ -92,12 +92,12 @@ static const char PAGE_ESPNOW[] PROGMEM =
       </label>
     </div>
 
-    <!-- ESP-NOW v2 -->
+    <!-- UniversalMesh -->
     <div style="display:flex;align-items:center;justify-content:space-between;
                 padding:8px 0">
       <div>
-        <div style="font-weight:600;font-size:.92em">ESP-NOW v2</div>
-        <div style="font-size:.78em;color:var(--text-muted)">Extended v2 protocol</div>
+        <div style="font-weight:600;font-size:.92em">UniversalMesh</div>
+        <div style="font-size:.78em;color:var(--text-muted)">UniversalMesh v2 protocol</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="tog-espnow2" onchange="saveMode()">
@@ -105,6 +105,13 @@ static const char PAGE_ESPNOW[] PROGMEM =
       </label>
     </div>
 
+    <div style="display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid var(--border-color);margin-top:4px">
+      <label style="font-size:.8em;color:var(--text-muted);white-space:nowrap">Exclude App IDs:</label>
+      <input id="excl-appids" type="text" placeholder="e.g. 5,6"
+             style="flex:1;padding:4px 6px;font-size:.82em;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text)">
+      <button onclick="saveExclAppIds()" class="btn btn-info" style="white-space:nowrap">Save</button>
+      <span id="appid-status" style="font-size:.8em;color:#4caf50;min-width:40px"></span>
+    </div>
     <div id="mode-status" style="font-size:.82em;color:#4caf50;min-height:1.2em;padding-top:6px"></div>
   </div>
 
@@ -118,9 +125,9 @@ static const char PAGE_ESPNOW[] PROGMEM =
     <div id="poc-log"><span style="color:var(--text-muted);font-size:.85em">No messages yet.</span></div>
   </div>
 
-  <!-- Card 4: ESP-NOW v2 Messages -->
+  <!-- Card 4: UniversalMesh Messages -->
   <div class="card">
-    <h3>ESP-NOW v2 Messages</h3>
+    <h3>UniversalMesh Messages</h3>
     <div class="metric" style="border-bottom:1px solid var(--border-color);margin-bottom:8px">
       <span class="metric-label">Received</span>
       <span class="metric-value" id="v2-count">-</span>
@@ -214,6 +221,7 @@ static const char PAGE_ESPNOW[] PROGMEM =
     document.getElementById('time-ric').value=d.time_ric||224;
     document.getElementById('call-ric').value=d.call_ric||8;
     document.getElementById('excl-rics').value=(d.excl_rics||[]).join(',');
+    document.getElementById('excl-appids').value=(d.excl_appids||[]).join(',');
   }).catch(function(){});
   fetch('/api/espnow/modes').then(function(r){return r.json();}).then(function(d){
     document.getElementById('tog-pocsag').checked=d.pocsag;
@@ -230,6 +238,20 @@ function saveMode(){
   .then(function(r){return r.json();}).then(function(d){
     var s=document.getElementById('mode-status');
     s.textContent=d.ok?'Saved \u2714':'Error';
+    s.style.color=d.ok?'#4caf50':'#dc3545';
+    setTimeout(function(){s.textContent='';},2000);
+  }).catch(function(){});
+}
+function saveExclAppIds(){
+  var excl=document.getElementById('excl-appids').value
+    .replace(/[^0-9,]/g,'').replace(/,+/g,',').replace(/^,|,$/g,'');
+  document.getElementById('excl-appids').value=excl;
+  fetch('/api/espnow',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'excl_appids='+encodeURIComponent(excl)})
+  .then(function(r){return r.json();}).then(function(d){
+    var s=document.getElementById('appid-status');
+    s.textContent=d.ok?'\u2714':'Error';
     s.style.color=d.ok?'#4caf50':'#dc3545';
     setTimeout(function(){s.textContent='';},2000);
   }).catch(function(){});

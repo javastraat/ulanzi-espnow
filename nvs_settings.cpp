@@ -150,6 +150,18 @@ void loadSettings() {
       }
     }
   }
+  {
+    String s = p.getString("mesh_excl_app", "");
+    excludedAppIdsCount = 0;
+    int start = 0;
+    for (int i = 0; i <= (int)s.length() && excludedAppIdsCount < EXCLUDED_APPIDS_MAX; i++) {
+      if (i == (int)s.length() || s[i] == ',') {
+        String tok = s.substring(start, i); tok.trim();
+        if (tok.length() > 0) excludedAppIds[excludedAppIdsCount++] = (uint8_t)tok.toInt();
+        start = i + 1;
+      }
+    }
+  }
   // Icon filenames — trim whitespace to fix any accidentally saved leading/trailing spaces
   { String s = p.getString("icon_temp", "");  s.trim(); strncpy(iconTempFile,   s.c_str(), 31); iconTempFile[31]   = '\0'; }
   { String s = p.getString("icon_hum",  "");  s.trim(); strncpy(iconHumFile,    s.c_str(), 31); iconHumFile[31]    = '\0'; }
@@ -237,6 +249,11 @@ void saveSettings() {
     String s = "";
     for (int i = 0; i < excludedRicsCount; i++) { if (i) s += ","; s += String(excludedRics[i]); }
     p.putString("ric_excl", s);
+  }
+  {
+    String s = "";
+    for (int i = 0; i < excludedAppIdsCount; i++) { if (i) s += ","; s += String(excludedAppIds[i]); }
+    p.putString("mesh_excl_app", s);
   }
   // Icon filenames
   p.putString("icon_temp", iconTempFile);

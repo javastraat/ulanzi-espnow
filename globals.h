@@ -240,12 +240,15 @@ extern bool recvEspnow2Enabled;  // ESP-NOW v2 processing on/off at runtime
 
 // ── ESP-NOW / POCSAG RIC settings ────────────────────────────────────────────
 
-#define EXCLUDED_RICS_MAX 16
+#define EXCLUDED_RICS_MAX    16
+#define EXCLUDED_APPIDS_MAX   8
 
 extern uint32_t timePocRic;
 extern uint32_t callsignRic;
 extern uint32_t excludedRics[EXCLUDED_RICS_MAX];
 extern uint8_t  excludedRicsCount;
+extern uint8_t  excludedAppIds[EXCLUDED_APPIDS_MAX];
+extern uint8_t  excludedAppIdsCount;
 
 // ── Screensaver ───────────────────────────────────────────────────────────────
 

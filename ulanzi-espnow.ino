@@ -194,6 +194,8 @@ uint32_t timePocRic       = TIME_POCSAG_RIC;
 uint32_t callsignRic      = CALLSIGN_RIC;
 uint32_t excludedRics[EXCLUDED_RICS_MAX] = {};
 uint8_t  excludedRicsCount = 0;
+uint8_t  excludedAppIds[EXCLUDED_APPIDS_MAX] = {};
+uint8_t  excludedAppIdsCount = 0;
 
 // Screensaver
 bool          screensaverEnabled    = false;

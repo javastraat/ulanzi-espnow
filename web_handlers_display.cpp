@@ -50,18 +50,38 @@ void registerDisplayHandlers() {
     if (hasTm) snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d",
                         t.tm_hour, t.tm_min, t.tm_sec);
 
-    // Build POCSAG log array (newest first)
+    // Build POCSAG log array (newest first, deduped, capped at POCSAG_LOG_WEB_MAX)
     char logBuf[1100]; int lp = 0;
     lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "[");
-    for (int i = 0; i < wsPocsagFill; i++) {
+    bool logFirst = true;
+    int  logShown = 0;
+    // dedup: track seen ric+msg combos
+    uint32_t seenRic[POCSAG_LOG_SIZE];
+    char     seenMsg[POCSAG_LOG_SIZE][POCSAG_MSG_MAX_LEN + 1];
+    uint8_t  seenCount = 0;
+    for (int i = 0; i < wsPocsagFill && logShown < POCSAG_LOG_WEB_MAX; i++) {
       int idx = ((int)wsPocsagHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      bool dup = false;
+      for (int j = 0; j < seenCount; j++) {
+        if (seenRic[j] == wsPocsagLog[idx].ric &&
+            strncmp(seenMsg[j], wsPocsagLog[idx].msg, POCSAG_MSG_MAX_LEN) == 0) {
+          dup = true; break;
+        }
+      }
+      if (dup) continue;
+      seenRic[seenCount] = wsPocsagLog[idx].ric;
+      strncpy(seenMsg[seenCount], wsPocsagLog[idx].msg, POCSAG_MSG_MAX_LEN);
+      seenMsg[seenCount][POCSAG_MSG_MAX_LEN] = '\0';
+      seenCount++;
       char safe[POCSAG_MSG_MAX_LEN + 1]; int si = 0;
       for (int j = 0; wsPocsagLog[idx].msg[j] && si < POCSAG_MSG_MAX_LEN; j++) {
         char c = wsPocsagLog[idx].msg[j];
         if (c != '"' && c != '\\') safe[si++] = c;
       }
       safe[si] = '\0';
-      if (i > 0) lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, ",");
+      if (!logFirst) lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, ",");
+      logFirst = false;
+      logShown++;
       lp += snprintf(logBuf + lp, sizeof(logBuf) - lp,
         "{\"ric\":%lu,\"msg\":\"%s\",\"ts\":\"%s\"}", (unsigned long)wsPocsagLog[idx].ric, safe, wsPocsagLog[idx].ts);
     }
