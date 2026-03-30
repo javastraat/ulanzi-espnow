@@ -13,4 +13,4 @@
 .vscode/**
 **/secrets.h
 **/.DS_Store
-.DS_Store
+**/settings.local.json

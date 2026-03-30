@@ -47,6 +47,10 @@ The Ulanzi TC001 receives these packets and renders them on its LED matrix.
 - **POCSAG** messages display with a pinned icon and scrolling or static text.
   A special time-beacon RIC (224) lets the hotspot synchronise the display clock.
 - **DMR** packets are counted and logged but not rendered on the display.
+- **UniversalMesh** (ESP-NOW v2) — the Ulanzi joins a UniversalMesh sensor network as a node.
+  It announces itself, sends heartbeats, and forwards SHT31 temperature/humidity readings to the coordinator.
+  Forwarded POCSAG messages arriving via the mesh are displayed on the matrix (with RIC exclusion filtering).
+  The time beacon RIC is also honoured via mesh, keeping the clock synced even without direct POCSAG.
 - Between messages the display cycles through clock, temperature, humidity, and battery.
 
 ---
@@ -82,37 +86,49 @@ All display state is written only from Core 1, eliminating data races without mu
 
 ### Source files
 
+All source files live under `src/`. The project uses **PlatformIO** (see [Setup](#setup)).
+
 | File | Purpose |
 |---|---|
-| `ulanzi-espnow.ino` | Global variable definitions · `setup()` · `loop()` |
-| `config.h` | All compile-time constants and pin assignments |
-| `globals.h` | Shared `extern` declarations and packet structs |
-| `display.h/.cpp` | Font tables · drawing helpers · brightness · indicators · auto-rotate · screensaver · display loop |
-| `receiver.h/.cpp` | ESP-NOW callback · POCSAG processing · WiFi setup |
-| `sensor.h/.cpp` | DS1307 RTC (direct I2C) · SHT31 temperature/humidity |
-| `buzzer.h/.cpp` | Non-blocking LEDC tone engine |
-| `buttons.h/.cpp` | Debounced button handler |
-| `nvs_settings.h/.cpp` | NVS Preferences load/save |
-| `filesystem.h/.cpp` | LittleFS initialisation |
-| `serial_log.h/.cpp` | In-memory ring-buffer for `LOG()` output (served via `/api/serial/log`) |
-| `mqtt.h/.cpp` | MQTT client · Home Assistant auto-discovery · state publish |
-| `web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer page routes + asset routes |
-| `web_handlers_display.h/.cpp` | API handlers: status, brightness, buzzer, icons, colors, screensaver, indicators, buttons |
-| `web_handlers_espnow.h/.cpp` | API handlers: ESP-NOW modes, RIC settings |
-| `web_handlers_files.h/.cpp` | API handlers: filesystem browser, serial log, file upload/download, LaMetric proxy |
-| `web_handlers_mqtt.h/.cpp` | API handlers: MQTT settings and discovery |
-| `web_handlers_system.h/.cpp` | API handlers: sysinfo, tasks, device name, NVS, reboot, factory reset, debug |
-| `web/styles.h` | Shared CSS + light/dark theme + modal helpers |
-| `web/navigation.h` | Shared nav bar + LIVE overlay modal |
-| `web/main.h` | Home/dashboard page + `/live` fullscreen page |
-| `web/display.h` | Display settings page |
-| `web/settings.h` | Device settings page (buzzer, device name, system actions) |
-| `web/espnow.h` | ESP-NOW & POCSAG RIC configuration page |
-| `web/info.h` | System information page |
-| `web/files.h` | File manager page |
-| `web/mqtt.h` | MQTT configuration page |
-| `web/serial.h` | Serial monitor page |
-| `web/pwa_icon.h` | PWA manifest + app icons (served as `/manifest.json`, `/favicon.ico`) |
+| `src/main.cpp` | Global variable definitions · `setup()` · `loop()` |
+| `src/config.h` | All compile-time constants and pin assignments |
+| `src/globals.h` | Shared `extern` declarations and packet structs |
+| `src/display.h/.cpp` | Font tables · drawing helpers · brightness · indicators · auto-rotate · screensaver · display loop |
+| `src/clockface.h/.cpp` | Six selectable clock face renderers (Classic, Calendar, Weekday, Big, BigGIF, Binary) |
+| `src/receiver.h/.cpp` | ESP-NOW callback · POCSAG/DMR/UniversalMesh processing · WiFi setup |
+| `src/sensor.h/.cpp` | DS1307 RTC (direct I2C) · SHT31 temperature/humidity |
+| `src/buzzer.h/.cpp` | Non-blocking LEDC tone engine |
+| `src/buttons.h/.cpp` | Debounced button handler |
+| `src/menu.h/.cpp` | On-device button menu system |
+| `src/transition.h/.cpp` | Screen transition effects between display modes |
+| `src/custom_apps.h/.cpp` | AWTRIX3-compatible custom app slots (up to 8 simultaneous apps, MQTT-driven) |
+| `src/nvs_settings.h/.cpp` | NVS Preferences load/save |
+| `src/filesystem.h/.cpp` | LittleFS initialisation |
+| `src/serial_log.h/.cpp` | In-memory ring-buffer for `LOG()` output (served via `/api/serial/log`) |
+| `src/mqtt.h/.cpp` | MQTT client · Home Assistant auto-discovery · state publish |
+| `src/web_server.h/.cpp` | ArduinoOTA + mDNS + WebServer page routes + asset routes |
+| `src/web_handlers_display.h/.cpp` | API handlers: status, brightness, buzzer, icons, colors, screensaver, indicators, buttons |
+| `src/web_handlers_espnow.h/.cpp` | API handlers: ESP-NOW modes, RIC settings, UniversalMesh log |
+| `src/web_handlers_files.h/.cpp` | API handlers: filesystem browser, serial log, file upload/download, LaMetric proxy |
+| `src/web_handlers_mqtt.h/.cpp` | API handlers: MQTT settings and discovery |
+| `src/web_handlers_system.h/.cpp` | API handlers: sysinfo, tasks, device name, NVS, reboot, factory reset, debug |
+| `src/web_handlers_backup.h/.cpp` | API handlers: configuration backup/restore, LittleFS snapshot |
+| `src/web/styles.h` | Shared CSS + light/dark theme + modal helpers |
+| `src/web/navigation.h` | Shared nav bar + LIVE overlay modal |
+| `src/web/main.h` | Home/dashboard page + `/live` fullscreen page |
+| `src/web/display.h` | Display settings page |
+| `src/web/settings.h` | Device settings page (buzzer, device name, system actions) |
+| `src/web/espnow.h` | ESP-NOW & POCSAG RIC configuration + UniversalMesh page |
+| `src/web/info.h` | System information page |
+| `src/web/files.h` | File manager page |
+| `src/web/firmware.h` | Firmware update / OTA page |
+| `src/web/mqtt.h` | MQTT configuration page |
+| `src/web/serial.h` | Serial monitor page |
+| `src/web/apps.h` | Custom apps manager page |
+| `src/web/wifi.h` | WiFi network configuration page |
+| `src/web/backup.h` | Backup / restore configuration page |
+| `src/web/pwa_icon.h` | PWA manifest + app icons (served as `/manifest.json`, `/favicon.ico`) |
+| `lib/UniversalMesh/` | Local UniversalMesh ESP-NOW mesh library |
 
 ---
 
@@ -141,7 +157,7 @@ configurable from the web Settings page and persisted to NVS.
 - **Static** (message fits on screen): displayed for `POCSAG_STATIC_MS` (default 15 s) then clock resumes.
   Icon animates at its natural GIF frame rate. Text is centered in the space to the right of the icon.
 - **Scrolling** (message too wide): icon pinned at x=0, text scrolls left at `POCSAG_SCROLL_SPEED_MS`
-  (default 50 ms/pixel), repeated `POCSAG_SCROLL_PASSES` (default 3) times.
+  (default 75 ms/pixel), repeated `POCSAG_SCROLL_PASSES` (default 2) times.
   Text is clipped so it disappears behind the pinned icon rather than overlapping it.
 - Buzzer beeps once on receive (configurable per-type: boot / POCSAG / click).
 - Auto-rotate pauses while a message is active; rotation timer resets when it clears.
@@ -158,12 +174,24 @@ configurable from the web Settings page and persisted to NVS.
 
 ### Clock
 
-- Shows HH:MM:SS in a custom 3×5 pixel font, centered on the 32×8 matrix.
-- Time source priority:
-  1. DS1307 RTC at boot (if fitted and running).
-  2. POCSAG time-beacon RIC 224 — the hotspot broadcasts `YYYYMMDDHHMMSS<YYMMDDHHmmSS>` periodically.
-     After sync the RTC is updated and `pocsag_synced` is flagged in the API.
-- Scanner animation (blue pulse) plays until the first sync arrives.
+Six selectable clock faces (configurable from the Display Settings page, persisted to NVS):
+
+| Face | Style |
+|---|---|
+| Classic | HH:MM:SS in custom 3×5 pixel font |
+| Calendar | Date + time |
+| Weekday | Day name + time |
+| Big | Large digits, seconds omitted |
+| BigGIF | Large digits with animated GIF background |
+| Binary | Binary-encoded time |
+
+Time source priority:
+1. DS1307 RTC at boot (if fitted and running).
+2. POCSAG time-beacon RIC 224 — the hotspot broadcasts `YYYYMMDDHHMMSS<YYMMDDHHmmSS>` periodically.
+3. UniversalMesh — if a forwarded POCSAG time-beacon arrives via the mesh, the clock and RTC are synced from it too (works even if direct POCSAG is disabled).
+
+After sync the RTC is updated and `pocsag_synced` is flagged in the API.
+Scanner animation (blue pulse) plays until the first sync arrives.
 
 ### Screensaver
 
@@ -208,8 +236,7 @@ The HTTP service is registered so network scanners can discover the device autom
 
 ### ArduinoOTA
 
-OTA updates are available over WiFi. The OTA hostname (shown in the Arduino IDE
-**Port** menu) is the **same as the mDNS hostname** — both use `mdnsName` from NVS.
+OTA updates are available over WiFi. The OTA hostname is the **same as the mDNS hostname** — both use `mdnsName` from NVS.
 Change it from the **Device Name** card in Settings and reboot to apply.
 
 ```
@@ -245,8 +272,8 @@ Light and dark themes are available (preference stored in `localStorage`).
 ### Pages
 
 Navigation bar is present on every page. The **More** dropdown links to Display, Settings,
-MQTT, ESP-NOW, Files, Info, and Serial. The **LIVE** button opens a fullscreen LED overlay
-on any page. Light and dark themes are available (stored in `localStorage`).
+MQTT, ESP-NOW, Files, Info, Serial, Apps, WiFi, Firmware, and Backup. The **LIVE** button
+opens a fullscreen LED overlay on any page. Light and dark themes are available (stored in `localStorage`).
 
 #### `/` — Dashboard
 
@@ -300,8 +327,9 @@ All display settings are saved to NVS immediately on change.
 | Card | Controls |
 |---|---|
 | **POCSAG RIC Settings** | Time beacon RIC (default 224) · Callsign RIC (default 8) · Excluded RICs (comma-separated, up to 16) |
-| **Protocol Modes** | POCSAG toggle · DMR (future) · ESP-NOW v2 (future) |
+| **Protocol Modes** | POCSAG toggle · DMR toggle · UniversalMesh toggle · Exclude App IDs (comma-separated, up to 8) |
 | **Received Messages** | POCSAG packet count · recent message log with RIC and text |
+| **UniversalMesh Messages** | UniversalMesh packet count · deduplicated message log (newest first, up to `POCSAG_LOG_WEB_MAX` entries) |
 
 #### `/info` — System Information
 
@@ -343,6 +371,26 @@ Click any `.gif` or `.jpg` to preview inline.
 
 Live `LOG()` output streamed from the device ring buffer (polls every second).
 Pause / Resume · Clear buffer · auto-scroll to bottom.
+
+#### `/apps` — Custom Apps
+
+AWTRIX3-compatible custom app slots. Up to 8 simultaneous apps can be pushed via MQTT
+(`{nodeId}/custom_app/{name}/set`) and displayed in the rotation cycle alongside built-in screens.
+
+#### `/wifi` — WiFi Configuration
+
+Manage up to 6 saved WiFi networks. The device tries each in order at boot and on reconnect.
+SoftAP settings (SSID, password, channel) are also configured here.
+
+#### `/firmware` — Firmware Update
+
+Shows current firmware version, partition info, and OTA update space.
+Supports both manual `.bin` upload and remote update from a URL.
+
+#### `/backup` — Backup & Restore
+
+Export all NVS settings to a JSON file and re-import them later.
+Also supports full LittleFS snapshots (upload/download `.tar` archives of icons and screensaver files).
 
 ---
 
@@ -648,30 +696,58 @@ Paste it into the hotspot's sender config as `RECEIVER_MAC`.
 // Callsign RIC (trailing digits stripped before display)
 #define CALLSIGN_RIC  8
 
-// RICs that are never shown on the LED matrix
-#define POCSAG_DISPLAY_EXCLUDED_RICS  { 224, 208, 200, 216, 4520, 4521 }
+// RICs that are never shown on the LED matrix (compile-time default; overridable at runtime)
+#define EXCLUDED_RICS_DEFAULT  "224,208,200,216,4520,4521"
 ```
 
 > **Note:** the boot screen name and mDNS/OTA hostname are set at runtime from the
 > **Device Name** card in Settings — no recompile needed. A reboot is required for the
 > new hostname to take effect.
 
-### 3. Required Arduino libraries
+### 3. Install PlatformIO
 
-Install via **Sketch → Include Library → Manage Libraries**:
+Install the [PlatformIO IDE extension](https://platformio.org/install/ide?install=vscode) for VS Code,
+or the PlatformIO Core CLI:
 
-| Library | Author | Purpose |
+```bash
+pip install platformio
+```
+
+All library dependencies are declared in `platformio.ini` and downloaded automatically on first build:
+
+| Library | Version | Purpose |
 |---|---|---|
-| ESP32 Arduino core ≥ 3.x | Espressif | Board support (install via Board Manager) |
-| FastLED | Daniel Garcia | WS2812B LED matrix |
-| AnimatedGIF | Larry Bank | Animated GIF playback |
-| TJpg_Decoder | Bodmer | JPEG decode and render |
-| SHT31 | Rob Tillaart | Temperature/humidity sensor |
+| FastLED | ^3.7.0 | WS2812B LED matrix |
+| ArduinoJson | latest | JSON parsing (UniversalMesh payloads) |
+| PubSubClient | ^2.8 | MQTT client |
+| TJpg_Decoder | ^1.0.8 | JPEG decode and render |
+| AnimatedGIF | ^2.1.1 | Animated GIF playback |
+| SHT31 (Tillaart) | latest | Temperature/humidity sensor |
+| UniversalMesh | local (`lib/`) | ESP-NOW mesh network |
 
-### 4. Flash
+### 4. Build and flash
 
-Select board **ESP32 Dev Module** (or equivalent), 921600 baud, then Upload.
-After first boot, subsequent updates can be done via OTA.
+Four environments are defined in `platformio.ini`:
+
+| Environment | Flash | Upload method |
+|---|---|---|
+| `ulanzi-tc001-4mb` | 4 MB | USB serial |
+| `ulanzi-tc001-8mb` | 8 MB | USB serial |
+| `ulanzi-tc001-4mb-ota` | 4 MB | OTA (set `upload_port` in `platformio.ini`) |
+| `ulanzi-tc001-8mb-ota` | 8 MB | OTA |
+
+Build and flash via USB:
+```bash
+pio run -e ulanzi-tc001-8mb -t upload
+```
+
+Monitor serial output:
+```bash
+pio device monitor
+```
+
+After first boot, subsequent updates can be done via OTA using the `-ota` environments,
+or through the **Firmware** page in the web interface.
 
 ---
 
@@ -744,9 +820,12 @@ flashing new firmware that adds a new key.
 | `debug_log` | u8 | 0 | Verbose logging (`[GIF]`, `[SHT31]`, etc.) |
 | `ind_en` | u8 | 1 | Status dot indicators enabled |
 | `recv_pocsag` | u8 | 1 | POCSAG receive mode enabled |
+| `recv_dmr` | u8 | 0 | DMR receive mode enabled |
+| `recv_espnow2` | u8 | 0 | UniversalMesh receive mode enabled |
 | `ric_time` | u32 | 224 | Time-beacon RIC |
 | `ric_call` | u32 | 8 | Callsign RIC |
 | `ric_excl` | string | `"224,208,200,216,4520,4521"` | Excluded RICs (comma-separated) |
+| `mesh_excl_app` | string | `"5,6"` | Excluded UniversalMesh App IDs (comma-separated, up to 8) |
 | `mqtt_en` | u8 | 0 | MQTT enabled |
 | `mqtt_broker` | string | `""` | MQTT broker hostname or IP |
 | `mqtt_port` | u16 | 1883 | MQTT broker port |
