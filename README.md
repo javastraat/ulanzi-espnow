@@ -1,9 +1,18 @@
-# ulanzi-espnow — ESP-NOW POCSAG/DMR Display for Ulanzi TC001
+# ulanzi-espnow — Smart Display Node for Ulanzi TC001
 
-Receives POCSAG pager messages and DMR radio packets from an MMDVM hotspot over **ESP-NOW**
-and displays them on the Ulanzi TC001's 32×8 WS2812B LED matrix.
+A smart display node for the Ulanzi TC001 built on the **UniversalMesh** ESP-NOW mesh network.
+Participates in the mesh as a sensor node — announcing itself, sending heartbeats, and
+forwarding SHT31 temperature/humidity readings to the coordinator.
+
+Displays messages from multiple sources on the 32×8 WS2812B LED matrix:
+- **POCSAG** pager messages (direct ESP-NOW from an MMDVM hotspot, or forwarded via UniversalMesh)
+- **DMR** radio packets (counted and logged)
+- **UniversalMesh** data payloads from any node in the mesh
+
 Shows a live clock between messages, with optional temperature / humidity / battery displays.
 Fully configurable from a mobile-friendly web interface — no recompile needed.
+
+> Started as an MMDVM/POCSAG display, now a general-purpose UniversalMesh node with a display.
 
 ---
 
