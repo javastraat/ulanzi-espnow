@@ -12,4 +12,5 @@ bool injectMqttMessage(const char* text, const char* iconFile = nullptr, bool be
 
 #if RECV_ESPNOW2
 void injectEspNow2Message(const char* msg, uint32_t msgId = 0, uint8_t appId = 0, uint8_t ttl = 0, const uint8_t* relay = nullptr);
+void loopMesh();
 #endif

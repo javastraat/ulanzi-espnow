@@ -5,10 +5,15 @@
 #include "sensor.h"
 #include "web_server.h"
 #include "display.h"
-#include <esp_now.h>
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <time.h>
+
+#if RECV_ESPNOW2
+#include "lib/UniversalMesh/UniversalMesh.cpp"
+#include <ArduinoJson.h>
+static UniversalMesh mesh;
+#endif
 
 // ── POCSAG helpers ────────────────────────────────────────────────────────────
 
@@ -175,6 +180,13 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 
 #if RECV_ESPNOW2
 
+#define MESH_HEARTBEAT_INTERVAL  60000
+#define MESH_SENSOR_INTERVAL     30000
+
+static unsigned long meshLastHeartbeat = 0;
+static unsigned long meshLastSensor    = 0;
+static uint8_t       meshBroadcast[6]  = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
 void injectEspNow2Message(const char* msg, uint32_t msgId, uint8_t appId, uint8_t ttl, const uint8_t* relay) {
   if (!msg || msg[0] == '\0') return;
 
@@ -196,31 +208,137 @@ void injectEspNow2Message(const char* msg, uint32_t msgId, uint8_t appId, uint8_
   wsCountEspNow2++;
 
   mqttNotifyEspNow2();
-
-#if RECV_POCSAG
-  applyDisplayMessageState(msg, nullptr, true);
-#endif
 }
 
-static void processEspNowV2Packet(const uint8_t* data, int len) {
-  if (len < 20) { LOG("[RX-V2] Packet too short (%d bytes)\n", len); return; }
-  uint8_t  ttl      = data[1];
-  uint32_t msgId    = (uint32_t)data[2] | ((uint32_t)data[3] << 8)
-                    | ((uint32_t)data[4] << 16) | ((uint32_t)data[5] << 24);
-  const uint8_t* relay = data + 12;
-  uint8_t  appId    = data[18];
-  uint8_t  msgLen   = data[19];
-  if (20 + msgLen > len) msgLen = len - 20;
-  char msg[65] = {};
-  memcpy(msg, data + 20, msgLen);
+static void processMeshPacket(const uint8_t* data, int len) {
+  if (len < (int)sizeof(MeshPacket)) { LOG("[MESH] Packet too short (%d bytes)\n", len); return; }
+  const MeshPacket* p = (const MeshPacket*)data;
 
-  LOG("[RX-V2] type=0x%02X msgId=%u ttl=%d appId=%d relay=%02X:%02X:%02X:%02X:%02X:%02X msg(%d)=\"%s\"\n",
-    data[0], msgId, ttl, appId,
-    relay[0], relay[1], relay[2], relay[3], relay[4], relay[5],
-    msgLen, msg);
+  LOG("[MESH] type=0x%02X msgId=%u ttl=%d appId=0x%02X src=%02X:%02X:%02X:%02X:%02X:%02X payloadLen=%d\n",
+    p->type, p->msgId, p->ttl, p->appId,
+    p->srcMac[0], p->srcMac[1], p->srcMac[2],
+    p->srcMac[3], p->srcMac[4], p->srcMac[5],
+    p->payloadLen);
 
-  if (recvEspnow2Enabled && msgLen > 0)
-    injectEspNow2Message(msg, msgId, appId, ttl, relay);
+  // PONG with appId 0xFF = coordinator replied to our PING — save its MAC and announce
+  if (p->type == MESH_TYPE_PONG && p->appId == 0xFF) {
+    mesh.setCoordinatorMac((uint8_t*)p->srcMac);
+    LOG("[MESH] Coordinator found: %02X:%02X:%02X:%02X:%02X:%02X\n",
+      p->srcMac[0], p->srcMac[1], p->srcMac[2],
+      p->srcMac[3], p->srcMac[4], p->srcMac[5]);
+    mesh.send((uint8_t*)p->srcMac, MESH_TYPE_DATA, 0x06,
+              (const uint8_t*)mdnsName, strlen(mdnsName), 4);
+    return;
+  }
+
+  if (p->type != MESH_TYPE_DATA) return;
+
+  uint8_t msgLen = p->payloadLen;
+  if (msgLen == 0 || !recvEspnow2Enabled) return;
+
+  char msg[201] = {};
+  uint8_t copyLen = (msgLen > 200) ? 200 : msgLen;
+  memcpy(msg, p->payload, copyLen);
+
+  LOG("[MESH] appId=0x%02X msg=\"%s\"\n", p->appId, msg);
+
+  // 0x05 = heartbeat — log to web, no display
+  if (p->appId == 0x05) {
+    LOG("[MESH] Heartbeat from %02X:%02X:%02X:%02X:%02X:%02X\n",
+      p->srcMac[0], p->srcMac[1], p->srcMac[2],
+      p->srcMac[3], p->srcMac[4], p->srcMac[5]);
+    injectEspNow2Message("heartbeat", p->msgId, p->appId, p->ttl, p->srcMac);
+    return;
+  }
+
+  // 0x06 = node name registration — log to web, no display
+  if (p->appId == 0x06) {
+    LOG("[MESH] Node registered: \"%s\" (%02X:%02X:%02X:%02X:%02X:%02X)\n",
+      msg,
+      p->srcMac[0], p->srcMac[1], p->srcMac[2],
+      p->srcMac[3], p->srcMac[4], p->srcMac[5]);
+    injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+    return;
+  }
+
+  // 0x01 = sensor/data payload — could be forwarded POCSAG or sensor readings
+  if (p->appId == 0x01) {
+    JsonDocument doc;
+    if (deserializeJson(doc, msg) == DeserializationError::Ok) {
+
+      // Forwarded POCSAG: {"ric":200,"func":3,"msg":"..."}
+      if (doc["msg"].is<const char*>()) {
+        uint32_t    ric       = doc["ric"] | 0;
+        const char* pocsagMsg = doc["msg"];
+        bool excluded = false;
+        for (int i = 0; i < excludedRicsCount; i++)
+          if (ric == (uint32_t)excludedRics[i]) { excluded = true; break; }
+        if (excluded) {
+          LOG("[MESH→POCSAG] RIC=%lu excluded — skipping display\n", (unsigned long)ric);
+          injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+          return;
+        }
+        LOG("[MESH→POCSAG] RIC=%lu msg='%s'\n", (unsigned long)ric, pocsagMsg);
+        injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+#if RECV_POCSAG
+        injectDisplayMessage(pocsagMsg, nullptr, true, ric);
+#endif
+        return;
+      }
+
+      // Sensor node reading: {"name":"node","temp":"23.5"} — log, no display
+      if (doc["temp"].is<const char*>() || doc["temp"].is<float>()) {
+        const char* name = doc["name"] | "unknown";
+        float temp = doc["temp"] | 0.0f;
+        LOG("[MESH] Sensor \"%s\" temp=%.1f\n", name, temp);
+        injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+        return;
+      }
+    }
+  }
+
+  // Everything else goes to the ESP-NOW2 log
+  injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+}
+
+void loopMesh() {
+  unsigned long now = millis();
+
+  // Not connected yet — keep pinging to find coordinator
+  if (!mesh.isCoordinatorFound()) {
+    static unsigned long meshLastPing = 0;
+    if (now - meshLastPing >= 10000) {
+      meshLastPing = now;
+      mesh.send(meshBroadcast, MESH_TYPE_PING, 0x00,
+                (const uint8_t*)mdnsName, strlen(mdnsName), 4);
+      LOG("[MESH] Scanning for coordinator...\n");
+    }
+    return;
+  }
+
+  // Heartbeat + name re-registration every 60s
+  if (now - meshLastHeartbeat >= MESH_HEARTBEAT_INTERVAL) {
+    meshLastHeartbeat = now;
+    uint8_t hb = 0x01;
+    mesh.sendToCoordinator(0x05, &hb, 1);
+    mesh.sendToCoordinator(0x06, (uint8_t*)mdnsName, strlen(mdnsName));
+    LOG("[MESH] Heartbeat sent\n");
+  }
+
+  // Sensor data every 30s
+  if (now - meshLastSensor >= MESH_SENSOR_INTERVAL) {
+    meshLastSensor = now;
+    if (sht31Available) {
+      JsonDocument doc;
+      doc["name"] = mdnsName;
+      doc["temp"] = serialized(String(sht31Temp, 1));
+      doc["hum"]  = serialized(String(sht31Hum,  1));
+      String payload;
+      serializeJson(doc, payload);
+      mesh.sendToCoordinator(0x01, payload);
+      LOG("[MESH] Sensor: %s\n", payload.c_str());
+    }
+  }
 }
 
 #endif  // RECV_ESPNOW2
@@ -311,12 +429,11 @@ void onReceive(const esp_now_recv_info_t* info, const uint8_t* inData, int inLen
 #endif  // RECV_POCSAG
 
 #if RECV_ESPNOW2
-  if (type == ESPNOWV2_TYPE_DATA) {
-
-  // TODO: add ESPNOW_TYPE_V2 once packet type byte is defined
-  processEspNowV2Packet(inData, inLen);
+  // UniversalMesh packet types: PING(0x12) PONG(0x13) ACK(0x14) DATA(0x15) and secure variants
+  if (type >= MESH_TYPE_PING && type <= MESH_TYPE_PARANOID_DATA) {
+    processMeshPacket(inData, inLen);
+    return;
   }
-  return;
 #endif
 
   LOG("[RX] Unknown type 0x%02X (%d bytes)\n", type, inLen);
@@ -384,10 +501,23 @@ void setupReceiver() {
 
   setupReceiverNetwork();
 
+#if RECV_ESPNOW2
+  // Init as a mesh node on the current WiFi channel
+  uint8_t wifiChannel = softAPActive ? wifiApChannel : (uint8_t)WiFi.channel();
+  if (!mesh.begin(wifiChannel, MESH_NODE)) {
+    LOG("[ESP-NOW] Init FAILED — halting.\n");
+    while (true) delay(1000);
+  }
+  LOG("[MESH] Node started on channel %d — scanning for coordinator\n", wifiChannel);
+  // Re-register our own callback so POCSAG/DMR raw packets still work
+  esp_now_register_recv_cb(onReceive);
+#else
   if (esp_now_init() != ESP_OK) {
     LOG("[ESP-NOW] Init FAILED — halting.\n");
     while (true) delay(1000);
   }
+  esp_now_register_recv_cb(onReceive);
+#endif
 
   uint8_t macBytes[6];
   esp_wifi_get_mac(WIFI_IF_STA, macBytes);
@@ -395,7 +525,14 @@ void setupReceiver() {
     macBytes[0], macBytes[1], macBytes[2],
     macBytes[3], macBytes[4], macBytes[5]);
 
-  esp_now_register_recv_cb(onReceive);
   LOG("[RECEIVER] Listening — clock will sync on first RIC %lu beacon\n",
     (unsigned long)timePocRic);
+
+#if RECV_ESPNOW2
+  meshLastHeartbeat = millis() - MESH_HEARTBEAT_INTERVAL;
+  meshLastSensor    = millis() - MESH_SENSOR_INTERVAL;
+  // Send initial PING — loopMesh() will keep retrying until coordinator replies
+  mesh.send(meshBroadcast, MESH_TYPE_PING, 0x00,
+            (const uint8_t*)mdnsName, strlen(mdnsName), 4);
+#endif
 }

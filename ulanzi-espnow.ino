@@ -349,6 +349,9 @@ void loop() {
   loopBrightness();
   loopBuzzer();
   loopSHT31();
+#if RECV_ESPNOW2
+  loopMesh();
+#endif
   loopAutoRotate();
   loopDisplay();
 }
