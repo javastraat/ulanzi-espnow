@@ -1,0 +1,21 @@
+.pio/build/ulanzi-tc001-8mb-ota/lib618/FastLED/fl/crgb_hsv16.cpp.o: \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/crgb_hsv16.cpp \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/crgb.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/stdint.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/int.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/platforms/int.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/platforms/arm/is_arm.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/platforms/esp/int.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/chsv.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/hsv.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/namespace.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/color.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/lib8tion/types.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/force_inline.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/type_traits.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/move.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/hsv2rgb.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/ease.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fastled_progmem.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/platforms/null_progmem.h \
+ .pio/libdeps/ulanzi-tc001-8mb-ota/FastLED/src/fl/hsv16.h

@@ -1,0 +1,31 @@
+.pio/build/ulanzi-tc001-8mb-ota/FrameworkArduino/WMath.cpp.o: \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_system/include/esp_system.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_err.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/newlib/platform_include/stdio.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_compiler.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_attr.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_bit_defs.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_idf_version.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_timer/include/esp_timer.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_hw_support/include/esp_etm.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_rom/esp32/include/esp32/rom/ets_sys.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_rom/include/esp_rom_sys.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/soc/esp32/include/soc/reset_reasons.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/soc/esp32/include/soc/soc_caps.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_config.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_level.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_assert.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_color.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_buffer.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_timestamp.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_write.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_format.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_args.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_macros.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_assert.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_log_attr.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/log/include/esp_private/log_attr.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_hw_support/include/esp_random.h

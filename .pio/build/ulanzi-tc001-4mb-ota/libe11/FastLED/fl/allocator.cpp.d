@@ -1,0 +1,32 @@
+.pio/build/ulanzi-tc001-4mb-ota/libe11/FastLED/fl/allocator.cpp.o: \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/allocator.cpp \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/allocator.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/inplacenew.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/stdint.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/int.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/platforms/int.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/platforms/arm/is_arm.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/platforms/esp/int.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/memfill.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/type_traits.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/namespace.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/move.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/unused.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/bit_cast.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/bitset.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/bitset_dynamic.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/math_macros.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/has_include.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/compiler_control.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/variant.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/thread_local.h \
+ .pio/libdeps/ulanzi-tc001-4mb-ota/FastLED/src/fl/thread.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/heap/include/esp_heap_caps.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/heap/include/multi_heap.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_err.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/newlib/platform_include/stdio.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_compiler.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_attr.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_system/include/esp_system.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_bit_defs.h \
+ /Users/einstein/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/esp_common/include/esp_idf_version.h

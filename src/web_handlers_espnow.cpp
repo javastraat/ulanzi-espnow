@@ -1,0 +1,137 @@
+#include <Arduino.h>
+// web_handlers_espnow.cpp — API handlers for ESP-NOW / POCSAG RIC settings.
+#include "web_handlers_espnow.h"
+#include "globals.h"
+#include "nvs_settings.h"
+
+void registerEspNowHandlers() {
+
+  webServer.on("/api/espnow/modes", HTTP_GET, []() {
+    char buf[128];
+    snprintf(buf, sizeof(buf),
+      "{\"pocsag\":%s,\"dmr\":%s,\"espnow2\":%s}",
+      recvPocsagEnabled  ? "true" : "false",
+      recvDmrEnabled     ? "true" : "false",
+      recvEspnow2Enabled ? "true" : "false");
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/espnow/modes", HTTP_POST, []() {
+    if (webServer.hasArg("pocsag"))
+      recvPocsagEnabled  = (webServer.arg("pocsag")  == "1");
+    if (webServer.hasArg("dmr"))
+      recvDmrEnabled     = (webServer.arg("dmr")     == "1");
+    if (webServer.hasArg("espnow2"))
+      recvEspnow2Enabled = (webServer.arg("espnow2") == "1");
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer.on("/api/espnow/v2log", HTTP_GET, []() {
+#if RECV_ESPNOW2
+    char buf[2048];
+    int n = 0;
+    n += snprintf(buf + n, sizeof(buf) - n, "{\"count\":%lu,\"log\":[", (unsigned long)wsCountEspNow2);
+    bool first = true;
+    uint32_t seenIds[POCSAG_LOG_SIZE] = {};
+    uint8_t  seenCount = 0;
+    int shown = 0;
+    for (int i = 0; i < (int)wsEspNow2Fill && shown < POCSAG_LOG_WEB_MAX; i++) {
+      int idx = ((int)wsEspNow2Head - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      // Skip excluded appIds
+      bool appExcl = false;
+      for (int j = 0; j < excludedAppIdsCount; j++)
+        if (wsEspNow2Log[idx].appId == excludedAppIds[j]) { appExcl = true; break; }
+      if (appExcl) continue;
+      // Skip duplicate msgIds (same packet relayed multiple times)
+      bool dup = false;
+      for (int j = 0; j < seenCount; j++)
+        if (seenIds[j] == wsEspNow2Log[idx].msgId) { dup = true; break; }
+      if (dup) continue;
+      seenIds[seenCount++] = wsEspNow2Log[idx].msgId;
+      if (!first) n += snprintf(buf + n, sizeof(buf) - n, ",");
+      first = false;
+      shown++;
+      // Escape message for JSON
+      char safe[POCSAG_MSG_MAX_LEN * 2 + 1]; int si = 0;
+      for (int j = 0; wsEspNow2Log[idx].msg[j] && si < (int)sizeof(safe) - 2; j++) {
+        char c = wsEspNow2Log[idx].msg[j];
+        if (c == '"' || c == '\\') safe[si++] = '\\';
+        safe[si++] = c;
+      }
+      safe[si] = '\0';
+      n += snprintf(buf + n, sizeof(buf) - n,
+        "{\"msg\":\"%s\",\"ts\":\"%s\",\"appId\":%u,\"msgId\":%lu,\"ttl\":%u,\"relay\":\"%s\"}",
+        safe, wsEspNow2Log[idx].ts,
+        wsEspNow2Log[idx].appId,
+        (unsigned long)wsEspNow2Log[idx].msgId,
+        wsEspNow2Log[idx].ttl,
+        wsEspNow2Log[idx].relay);
+    }
+    snprintf(buf + n, sizeof(buf) - n, "]}");
+    webServer.send(200, "application/json", buf);
+#else
+    webServer.send(200, "application/json", "{\"count\":0,\"log\":[]}");
+#endif
+  });
+
+  webServer.on("/api/espnow", HTTP_GET, []() {
+    // Build excluded RICs JSON array
+    String excl = "[";
+    for (int i = 0; i < excludedRicsCount; i++) {
+      if (i) excl += ",";
+      excl += String(excludedRics[i]);
+    }
+    excl += "]";
+
+    String exclApps = "[";
+    for (int i = 0; i < excludedAppIdsCount; i++) { if (i) exclApps += ","; exclApps += String(excludedAppIds[i]); }
+    exclApps += "]";
+
+    char buf[320];
+    snprintf(buf, sizeof(buf),
+      "{\"time_ric\":%lu,\"call_ric\":%lu,\"excl_rics\":%s,\"excl_appids\":%s}",
+      (unsigned long)timePocRic,
+      (unsigned long)callsignRic,
+      excl.c_str(),
+      exclApps.c_str());
+    webServer.send(200, "application/json", buf);
+  });
+
+  webServer.on("/api/espnow", HTTP_POST, []() {
+    if (webServer.hasArg("time_ric"))
+      timePocRic = (uint32_t)webServer.arg("time_ric").toInt();
+
+    if (webServer.hasArg("call_ric"))
+      callsignRic = (uint32_t)webServer.arg("call_ric").toInt();
+
+    if (webServer.hasArg("excl_rics")) {
+      String s = webServer.arg("excl_rics");
+      excludedRicsCount = 0;
+      int start = 0;
+      for (int i = 0; i <= (int)s.length() && excludedRicsCount < EXCLUDED_RICS_MAX; i++) {
+        if (i == (int)s.length() || s[i] == ',') {
+          String tok = s.substring(start, i); tok.trim();
+          if (tok.length() > 0) excludedRics[excludedRicsCount++] = (uint32_t)tok.toInt();
+          start = i + 1;
+        }
+      }
+    }
+
+    if (webServer.hasArg("excl_appids")) {
+      String s = webServer.arg("excl_appids");
+      excludedAppIdsCount = 0;
+      int start = 0;
+      for (int i = 0; i <= (int)s.length() && excludedAppIdsCount < EXCLUDED_APPIDS_MAX; i++) {
+        if (i == (int)s.length() || s[i] == ',') {
+          String tok = s.substring(start, i); tok.trim();
+          if (tok.length() > 0) excludedAppIds[excludedAppIdsCount++] = (uint8_t)tok.toInt();
+          start = i + 1;
+        }
+      }
+    }
+
+    saveSettings();
+    webServer.send(200, "application/json", "{\"ok\":true}");
+  });
+}
