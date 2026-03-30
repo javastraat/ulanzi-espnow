@@ -4,3 +4,5 @@
 /images/icon/.DS_Store
 /images/screensaver/.DS_Store
 /web/.DS_Store
+.pio/*
+
