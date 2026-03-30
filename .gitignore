@@ -10,7 +10,7 @@
 .vscode/c_cpp_properties.json
 .vscode/extensions.json
 .vscode/launch.json
-.vscode/*
+.vscode/**
 **/secrets.h
 **/.DS_Store
 .DS_Store
