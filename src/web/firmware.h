@@ -65,7 +65,7 @@ inline String getFirmwarePageHTML() {
   // ── Card 1: ESP32 Firmware ──────────────────────────────────────────────
   html += "<div class='card'>";
   html += "<h3>ESP32 Firmware</h3>";
-  html += "<div class='metric'><span class='metric-label'>Chip Model</span><span class='metric-value'>" + String(ESP.getChipModel()) + "</span></div>";
+  html += "<div class='metric'><span class='metric-label'>Chip Model</span><span class='metric-value'>" + String(ESP.getChipModel()) + " &nbsp;·&nbsp; " + String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB flash</span></div>";
   html += "<div class='metric'><span class='metric-label'>Partition Size</span><span class='metric-value'>" + String(running ? running->size : 0) + " B</span></div>";
   html += "<div class='metric'><span class='metric-label'>Version</span><span class='metric-value'>" + String(FIRMWARE_VERSION) + "</span></div>";
   html += "<div class='metric'><span class='metric-label'>Build Date</span><span class='metric-value'>" + String(__DATE__) + " " + String(__TIME__) + "</span></div>";
