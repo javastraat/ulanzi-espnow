@@ -82,10 +82,12 @@ inline String getFirmwarePageHTML() {
   html += "<details id='fw-details' style='margin-top:8px'>";
   html += "<summary style='cursor:pointer;color:#007bff;font-size:.9em'>Update Options</summary>";
   html += "<div style='margin-top:10px'>";
-  html += "<p style='font-size:.85em;color:var(--text-muted);margin-bottom:10px'>Over-the-Air (OTA) firmware update options:</p>";
+  { uint32_t mb = ESP.getFlashChipSize() / (1024 * 1024);
+    html += "<p style='font-size:.85em;color:var(--text-muted);margin-bottom:10px'>Over-the-Air (OTA) firmware update options &nbsp;<span style='font-size:.85em;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:4px;padding:1px 7px'>" + String(mb) + " MB build</span>:</p>";
+  }
   html += "<div style='margin-bottom:10px'>";
   html += "<label class='metric-label' style='display:block;margin-bottom:5px'>Update Version:</label>";
-  html += "<select id='version-select' style='width:100%;padding:6px 8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em'>";
+  html += "<select id='version-select' onchange='updateFwFilename()' style='width:100%;padding:6px 8px;background:var(--bg-secondary);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;font-size:.88em'>";
   if (isBeta) {
     html += "<option value='stable'>Stable Release</option>";
     html += "<option value='beta' selected>Beta Release</option>";
@@ -93,7 +95,18 @@ inline String getFirmwarePageHTML() {
     html += "<option value='stable' selected>Stable Release</option>";
     html += "<option value='beta'>Beta Release</option>";
   }
-  html += "</select></div>";
+  html += "</select>";
+  { bool is4mb = (ESP.getFlashChipSize() <= 4u * 1024 * 1024);
+    String sf = is4mb ? "update_4mb.bin"      : "update.bin";
+    String bf = is4mb ? "update_beta_4mb.bin" : "update_beta.bin";
+    html += "<div id='fw-filename' style='font-size:.8em;color:var(--text-muted);margin-top:4px'>File: <code id='fw-fname'>" + (isBeta ? bf : sf) + "</code></div>";
+    html += "<script>var _fwStable='" + sf + "',_fwBeta='" + bf + "';"
+            "function updateFwFilename(){"
+            "var b=document.getElementById('version-select').value==='beta';"
+            "document.getElementById('fw-fname').textContent=b?_fwBeta:_fwStable;}"
+            "</script>";
+  }
+  html += "</div>";
   html += "<div style='display:flex;flex-direction:column;gap:8px'>";
   html += "<button class='btn btn-success' onclick='startOnlineUpdate()'>Online Update</button>";
   html += "<button class='btn btn-primary' onclick='document.getElementById(\"fw-file\").click()'>Upload File</button>";

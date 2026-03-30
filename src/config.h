@@ -38,6 +38,11 @@
 #define OTA_VERSION_BETA_URL   "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/version_beta.txt"
 
 
+#define OTA_FIRMWARE_4MB_URL       "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/firmware/update_4mb.bin"
+#define OTA_FIRMWARE_BETA_4MB_URL  "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/firmware/update_beta_4mb.bin"
+#define OTA_VERSION_4MB_URL        "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/version_4mb.txt"
+#define OTA_VERSION_BETA_4MB_URL   "https://raw.githubusercontent.com/javastraat/ulanzi-espnow/main/version_beta_4mb.txt"
+
 // ============================================================
 // Debug output — verbose DMR frame logging over Serial
 // ============================================================

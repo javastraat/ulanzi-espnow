@@ -20,9 +20,22 @@ extern "C" {
 
 static bool otaUploadMenuArmed = false;
 
+// Pick firmware/version URLs based on actual flash chip size and beta flag.
+static void getOtaUrls(bool beta, const char*& firmwareUrl, const char*& versionUrl) {
+  bool is4mb = (ESP.getFlashChipSize() <= 4 * 1024 * 1024);
+  if (is4mb) {
+    firmwareUrl = beta ? OTA_FIRMWARE_BETA_4MB_URL : OTA_FIRMWARE_4MB_URL;
+    versionUrl  = beta ? OTA_VERSION_BETA_4MB_URL  : OTA_VERSION_4MB_URL;
+  } else {
+    firmwareUrl = beta ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
+    versionUrl  = beta ? OTA_VERSION_BETA_URL  : OTA_VERSION_URL;
+  }
+}
+
 bool startOtaDownloadFromGithub(const char* version, String* errorOut, int* writtenOut) {
   const bool useBeta = (version && String(version) == "beta");
-  const char* url = useBeta ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
+  const char* url; const char* verUrl;
+  getOtaUrls(useBeta, url, verUrl);
   LOG("[OTA-DL] Downloading: %s\n", url);
 
   otaInProgress = true;
@@ -275,8 +288,8 @@ void registerSystemHandlers() {
   // Called async by the firmware page after load — avoids blocking page render.
   webServer.on("/api/remote-fw-info", HTTP_GET, []() {
     bool isBeta = (String(FIRMWARE_VERSION).indexOf("_BETA") >= 0);
-    const char* otaUrl     = isBeta ? OTA_FIRMWARE_BETA_URL : OTA_FIRMWARE_URL;
-    const char* versionUrl = isBeta ? OTA_VERSION_BETA_URL  : OTA_VERSION_URL;
+    const char* otaUrl; const char* versionUrl;
+    getOtaUrls(isBeta, otaUrl, versionUrl);
 
     int    remoteSize    = 0;
     String latestVersion = "N/A";
