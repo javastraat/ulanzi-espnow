@@ -674,15 +674,15 @@ preview the image, and save it directly to `/icons/` — no PC needed.
 
 ## Setup
 
-### 1. Sender (MMDVM hotspot)
+### 1. Mesh coordinator / MMDVM hotspot
 
-Flash the hotspot firmware with ESP-NOW sender enabled.
-Get the Ulanzi's MAC address from the serial monitor at first boot:
+**UniversalMesh mode (recommended):** The Ulanzi announces itself to the mesh coordinator
+automatically on boot — no MAC address configuration needed. As long as the Ulanzi and the
+coordinator are on the same WiFi channel, the node will be discovered and registered.
 
-```
-[INFO] My MAC: AA:BB:CC:DD:EE:FF
-```
-
+**Direct ESP-NOW mode (legacy POCSAG/DMR):** If you are using raw ESP-NOW without the mesh
+(e.g. direct MMDVM hotspot sender), the hotspot needs to know the Ulanzi's MAC address.
+Get it from the serial monitor at boot or from the **WiFi** card on the `/info` web page.
 Paste it into the hotspot's sender config as `RECEIVER_MAC`.
 
 ### 2. Ulanzi — edit `config.h`
