@@ -278,6 +278,14 @@ static void processMeshPacket(const uint8_t* data, int len) {
       if (doc["msg"].is<const char*>()) {
         uint32_t    ric       = doc["ric"] | 0;
         const char* pocsagMsg = doc["msg"];
+
+        // Time beacon via mesh — sync clock even if POCSAG protocol is off
+        if (ric == timePocRic) {
+          applyPocsagTime(pocsagMsg);
+          injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
+          return;
+        }
+
         bool excluded = false;
         for (int i = 0; i < excludedRicsCount; i++)
           if (ric == (uint32_t)excludedRics[i]) { excluded = true; break; }
@@ -289,7 +297,14 @@ static void processMeshPacket(const uint8_t* data, int len) {
         LOG("[MESH→POCSAG] RIC=%lu msg='%s'\n", (unsigned long)ric, pocsagMsg);
         injectEspNow2Message(msg, p->msgId, p->appId, p->ttl, p->srcMac);
 #if RECV_POCSAG
-        injectDisplayMessage(pocsagMsg, nullptr, true, ric);
+        char pocBuf[POCSAG_MSG_MAX_LEN + 1] = {};
+        strncpy(pocBuf, pocsagMsg, POCSAG_MSG_MAX_LEN);
+        if (ric == callsignRic) {
+          int len = strlen(pocBuf);
+          while (len > 0 && pocBuf[len - 1] >= '0' && pocBuf[len - 1] <= '9')
+            pocBuf[--len] = '\0';
+        }
+        injectDisplayMessage(pocBuf, nullptr, true, ric);
 #endif
         return;
       }
