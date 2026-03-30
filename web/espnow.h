@@ -105,14 +105,18 @@ static const char PAGE_ESPNOW[] PROGMEM =
       </label>
     </div>
 
-    <div style="display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid var(--border-color);margin-top:4px">
-      <label style="font-size:.8em;color:var(--text-muted);white-space:nowrap">Exclude App IDs:</label>
-      <input id="excl-appids" type="text" placeholder="e.g. 5,6"
-             style="flex:1;padding:4px 6px;font-size:.82em;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text)">
-      <button onclick="saveExclAppIds()" class="btn btn-info" style="white-space:nowrap">Save</button>
-      <span id="appid-status" style="font-size:.8em;color:#4caf50;min-width:40px"></span>
+    <div style="padding-top:8px;border-top:1px solid var(--border-color);margin-top:4px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:.8em;color:var(--text-muted);white-space:nowrap">Exclude App IDs:</label>
+        <input id="excl-appids" type="text" placeholder="e.g. 5,6"
+               style="flex:1;min-width:0;padding:4px 6px;font-size:.82em;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text)">
+        <button onclick="saveExclAppIds()" class="btn btn-info" style="white-space:nowrap;flex-shrink:0">Save</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding-top:4px">
+        <span id="appid-status" style="font-size:.8em;color:#4caf50"></span>
+        <span id="mode-status" style="font-size:.82em;color:#4caf50"></span>
+      </div>
     </div>
-    <div id="mode-status" style="font-size:.82em;color:#4caf50;min-height:1.2em;padding-top:6px"></div>
   </div>
 
   <!-- Card 3: POCSAG Messages -->
