@@ -1,351 +1,173 @@
 #!/bin/bash
 #
-# Firmware Build Script for ESP32 MMDVM Hotspot
-# Builds both normal and beta versions with automatic version management
+# Firmware Build Script — Ulanzi TC001
+# Builds 4 MB and/or 8 MB firmware using PlatformIO.
+#
+# Usage: ./build-firmware.sh [4mb|8mb|all] [normal|beta|both] [--no-push] [--no-commit]
+#   Default: all sizes, both versions
+#
+# Output:
+#   8 MB normal → firmware/update.bin        version.txt
+#   8 MB beta   → firmware/update_beta.bin   version_beta.txt
+#   4 MB normal → firmware/update_4mb.bin    version_4mb.txt
+#   4 MB beta   → firmware/update_beta_4mb.bin  version_beta_4mb.txt
 #
 
-set -e  # Exit on error
+set -e
+export PATH="$HOME/.platformio/penv/bin:$PATH"
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
-# Configuration
-CONFIG_FILE="config.h"
-NORMAL_VERSION_SUFFIX="ULANZI"
-BETA_VERSION_SUFFIX="ULANZI_BETA"
-NO_PUSH=false  # Default: push to git
-NO_COMMIT=false  # Default: commit to git
+CONFIG_FILE="src/config.h"
+NORMAL_SUFFIX="ULANZI"
+BETA_SUFFIX="ULANZI_BETA"
+NO_PUSH=false
+NO_COMMIT=false
+BUILD_SIZE="all"
+BUILD_TYPE="both"
 
-# Arduino CLI settings
-#FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,CPUFreq=240,DebugLevel=none,DFUOnBoot=default,EraseFlash=none,EventsCore=1,FlashMode=qio,FlashSize=16M,JTAGAdapter=default,LoopCore=1,MSCOnBoot=default,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,UploadMode=default,UploadSpeed=921600,USBMode=hwcdc,ZigbeeMode=default"
-#BUILD_DIR="build/esp32.esp32.esp32s3"
-#FQBN="esp32:esp32:mmdvm:PartitionScheme=ethelite_16MB"
-#esp32.menu.PartitionScheme.default_8MB=8M with spiffs (3MB APP/1.5MB SPIFFS)
-#FQBN="esp32:esp32:esp32:CPUFreq=240,DebugLevel=none,EraseFlash=none,EventsCore=1,FlashFreq=80,FlashMode=qio,FlashSize=8M,JTAGAdapter=default,LoopCore=1,PartitionScheme=default_8MB,PSRAM=disabled,UploadSpeed=921600,ZigbeeMode=default"
+print_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
-FQBN="esp32:esp32:esp32:PartitionScheme=default_8MB"
-BUILD_DIR="build/esp32.esp32.esp32"
+get_version_date() { date +%Y%m%d; }
 
-BINARY_NAME="ulanzi-espnow.ino.bin"
-
-# Function to print colored output
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Function to get current date in YYYYMMDD format
-get_version_date() {
-    date +%Y%m%d
-}
-
-# Function to update version in config.h
 update_version() {
     local version_string="$1"
-    local backup_file="${CONFIG_FILE}.bak"
-
+    cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
     print_info "Updating version to: $version_string"
-
-    # Create backup
-    cp "$CONFIG_FILE" "$backup_file"
-
-    # Update the version line using the configured suffixes (ULANZI / ULANZI_BETA).
-    # The $ anchor distinguishes _ULANZI" (normal) from _ULANZI_BETA" (beta)
-    # since the normal suffix is a substring of the beta suffix.
     if [[ "$version_string" == *"BETA"* ]]; then
-        # Building beta: comment out normal line, uncomment + update beta line
         sed -i.tmp \
-            -e "/FIRMWARE_VERSION.*_${NORMAL_VERSION_SUFFIX}\"$/s/^#define/\/\/#define/" \
-            -e "/FIRMWARE_VERSION.*_${BETA_VERSION_SUFFIX}\"$/s/^\/\///" \
-            -e "/FIRMWARE_VERSION.*_${BETA_VERSION_SUFFIX}\"$/s/\"[^\"]*\"/\"${version_string}\"/" \
+            -e "/FIRMWARE_VERSION.*_${NORMAL_SUFFIX}\"$/s/^#define/\/\/#define/" \
+            -e "/FIRMWARE_VERSION.*_${BETA_SUFFIX}\"$/s/^\/\///" \
+            -e "/FIRMWARE_VERSION.*_${BETA_SUFFIX}\"$/s/\"[^\"]*\"/\"${version_string}\"/" \
             "$CONFIG_FILE"
     else
-        # Building normal: uncomment + update normal line, comment out beta line
         sed -i.tmp \
-            -e "/FIRMWARE_VERSION.*_${NORMAL_VERSION_SUFFIX}\"$/s/^\/\///" \
-            -e "/FIRMWARE_VERSION.*_${NORMAL_VERSION_SUFFIX}\"$/s/\"[^\"]*\"/\"${version_string}\"/" \
-            -e "/FIRMWARE_VERSION.*_${BETA_VERSION_SUFFIX}\"$/s/^#define/\/\/#define/" \
+            -e "/FIRMWARE_VERSION.*_${NORMAL_SUFFIX}\"$/s/^\/\///" \
+            -e "/FIRMWARE_VERSION.*_${NORMAL_SUFFIX}\"$/s/\"[^\"]*\"/\"${version_string}\"/" \
+            -e "/FIRMWARE_VERSION.*_${BETA_SUFFIX}\"$/s/^#define/\/\/#define/" \
             "$CONFIG_FILE"
     fi
-
-    # Remove the temp file created by sed on macOS
     rm -f "${CONFIG_FILE}.tmp"
-
-    print_success "Version updated in $CONFIG_FILE"
 }
 
-# Function to restore config.h from backup
-restore_config() {
-    if [ -f "${CONFIG_FILE}.bak" ]; then
-        print_info "Restoring original config.h"
-        mv "${CONFIG_FILE}.bak" "$CONFIG_FILE"
-    fi
-}
+restore_config() { [ -f "${CONFIG_FILE}.bak" ] && mv "${CONFIG_FILE}.bak" "$CONFIG_FILE"; }
 
-# Function to clean build directory
-clean_build() {
-    print_info "Cleaning build directory..."
-    rm -rf build 2>/dev/null || true
-    print_success "Build directory cleaned"
-}
-
-# Function to compile firmware
 compile_firmware() {
-    print_info "Compiling firmware..."
-    arduino-cli compile --fqbn "$FQBN" . --export-binaries --verbose
-    print_success "Compilation completed"
+    local env="$1"
+    print_info "Compiling (env: $env)..."
+    pio run -e "$env"
+    print_success "Compilation done"
 }
 
-# Function to copy binary to firmware directory
 copy_binary() {
-    local output_file="$1"
-
-    print_info "Copying binary to $output_file"
-
-    # Create firmware directory if it doesn't exist
+    local env="$1" dest="$2"
     mkdir -p firmware
-
-    # Copy the binary
-    cp "${BUILD_DIR}/${BINARY_NAME}" "$output_file"
-
-    print_success "Binary copied to $output_file"
+    cp ".pio/build/${env}/firmware.bin" "$dest"
+    print_success "Binary → $dest"
 }
 
-# Function to write version to version file
-write_version_file() {
-    local version_string="$1"
-    local version_file="$2"
-
-    print_info "Writing version to $version_file"
-
-    echo "$version_string" > "$version_file"
-
-    print_success "Version written to $version_file"
-}
-
-# Function to commit and push to git
-git_commit_push() {
-    local file_to_commit="$1"
-    local commit_message="$2"
-
-    print_info "Committing and pushing to git..."
-
-    git add "$file_to_commit"
-
-    # Check if there are changes to commit
-    if git diff --cached --quiet; then
-        print_warning "No changes to commit for $file_to_commit"
+git_commit() {
+    local bin="$1" ver="$2"
+    [ "$NO_COMMIT" = true ] && return
+    git add "$bin" "$ver"
+    if ! git diff --cached --quiet; then
+        git commit -m "firmware: $bin — $(cat $ver)"
+        if [ "$NO_PUSH" = false ]; then git push && print_success "Pushed"; fi
     else
-        git commit -m "$commit_message"
-        git push
-        print_success "Changes committed and pushed"
+        print_warning "No changes to commit"
     fi
 }
 
-# Function to build normal version
-build_normal() {
-    local version_date=$(get_version_date)
-    local version_string="${version_date}_${NORMAL_VERSION_SUFFIX}"
-    local output_file="firmware/update.bin"
-    local version_file="version.txt"
+build_one() {
+    local env="$1" suffix="$2" bin="$3" ver="$4"
+    local version_string="$(get_version_date)_${suffix}"
 
     echo ""
-    print_info "========================================="
-    print_info "Building NORMAL firmware version"
-    print_info "Version: $version_string"
-    print_info "========================================="
+    print_info "============================================="
+    print_info "Building: $version_string  [$env]"
+    print_info "============================================="
     echo ""
 
-    # Update version in config.h
     update_version "$version_string"
+    compile_firmware "$env"
+    copy_binary "$env" "$bin"
+    echo "$version_string" > "$ver" && print_success "Version → $ver"
+    restore_config
+    git_commit "$bin" "$ver"
+    print_success "Done: $bin"
+}
 
-    # Clean and compile
-    clean_build
-    compile_firmware
-
-    # Copy binary
-    copy_binary "$output_file"
-
-    # Write version file
-    write_version_file "$version_string" "$version_file"
-
-    # Clean build directory
-    clean_build
-
-    # Git operations - commit both binary and version file
-    if [ "$NO_COMMIT" = false ]; then
-        git add "$output_file" "$version_file"
-        if git diff --cached --quiet; then
-            print_warning "No changes to commit for normal version"
-        else
-            git commit -m "Updated update file (update.bin) - Version: $version_string"
-            if [ "$NO_PUSH" = false ]; then
-                git push
-                print_success "Changes committed and pushed"
-            else
-                print_success "Changes committed (not pushed, --no-push was specified)"
-            fi
-        fi
+build_size() {
+    local size="$1"   # 4mb or 8mb
+    if [ "$size" = "8mb" ]; then
+        local env="ulanzi-tc001-8mb"
+        local norm_bin="firmware/update.bin"         norm_ver="version.txt"
+        local beta_bin="firmware/update_beta.bin"    beta_ver="version_beta.txt"
     else
-        print_info "Skipping git operations (--no-commit was specified)"
+        local env="ulanzi-tc001-4mb"
+        local norm_bin="firmware/update_4mb.bin"     norm_ver="version_4mb.txt"
+        local beta_bin="firmware/update_beta_4mb.bin" beta_ver="version_beta_4mb.txt"
     fi
 
-    # Clean up backup file
-    rm -f "${CONFIG_FILE}.bak"
-
-    print_success "Normal firmware build completed!"
+    case "$BUILD_TYPE" in
+        normal) build_one "$env" "$NORMAL_SUFFIX" "$norm_bin" "$norm_ver" ;;
+        beta)   build_one "$env" "$BETA_SUFFIX"   "$beta_bin" "$beta_ver" ;;
+        both)
+            build_one "$env" "$NORMAL_SUFFIX" "$norm_bin" "$norm_ver"
+            echo ""
+            build_one "$env" "$BETA_SUFFIX"   "$beta_bin" "$beta_ver"
+            ;;
+    esac
 }
 
-# Function to build beta version
-build_beta() {
-    local version_date=$(get_version_date)
-    local version_string="${version_date}_${BETA_VERSION_SUFFIX}"
-    local output_file="firmware/update_beta.bin"
-    local version_file="version_beta.txt"
-
-    echo ""
-    print_info "========================================="
-    print_info "Building BETA firmware version"
-    print_info "Version: $version_string"
-    print_info "========================================="
-    echo ""
-
-    # Update version in config.h
-    update_version "$version_string"
-
-    # Clean and compile
-    clean_build
-    compile_firmware
-
-    # Copy binary
-    copy_binary "$output_file"
-
-    # Write version file
-    write_version_file "$version_string" "$version_file"
-
-    # Clean build directory
-    clean_build
-
-    # Git operations - commit both binary and version file
-    if [ "$NO_COMMIT" = false ]; then
-        git add "$output_file" "$version_file"
-        if git diff --cached --quiet; then
-            print_warning "No changes to commit for beta version"
-        else
-            git commit -m "Updated update file (update_beta.bin) - Version: $version_string"
-            if [ "$NO_PUSH" = false ]; then
-                git push
-                print_success "Changes committed and pushed"
-            else
-                print_success "Changes committed (not pushed, --no-push was specified)"
-            fi
-        fi
-    else
-        print_info "Skipping git operations (--no-commit was specified)"
-    fi
-
-    # Clean up backup file
-    rm -f "${CONFIG_FILE}.bak"
-
-    print_success "Beta firmware build completed!"
-}
-
-# Function to build both versions
-build_both() {
-    print_info "Building both normal and beta versions..."
-    echo ""
-
-    build_normal
-    echo ""
-    build_beta
-
-    # Clean up backup file
-    rm -f "${CONFIG_FILE}.bak"
-
-    echo ""
-    print_success "========================================="
-    print_success "All builds completed successfully!"
-    print_success "========================================="
-}
-
-# Function to show usage
 show_usage() {
-    echo "Usage: $0 [normal|beta|both] [--no-push|--no-commit]"
+    echo "Usage: $0 [4mb|8mb|all] [normal|beta|both] [--no-push] [--no-commit]"
     echo ""
-    echo "Options:"
-    echo "  normal      - Build normal/stable firmware version"
-    echo "  beta        - Build beta firmware version"
-    echo "  both        - Build both normal and beta versions (default)"
-    echo "  --no-push   - Build and commit locally, but don't push to GitHub"
-    echo "  --no-commit - Build and copy files only, skip all git operations"
+    echo "  4mb     Build 4 MB flash version only"
+    echo "  8mb     Build 8 MB flash version only"
+    echo "  all     Build both flash sizes (default)"
+    echo "  normal  Build stable release only"
+    echo "  beta    Build beta release only"
+    echo "  both    Build normal + beta (default)"
+  echo ""
+  echo "  --no-push    Commit locally, do not push to git"
+  echo "  --no-commit  Copy files only, skip all git operations"
     echo ""
-    echo "Examples:"
-    echo "  $0                    # Build both versions and push"
-    echo "  $0 normal             # Build only normal version and push"
-    echo "  $0 beta               # Build only beta version and push"
-    echo "  $0 both --no-push     # Build both, commit locally, don't push"
-    echo "  $0 normal --no-commit # Build normal, just copy files, no git"
-    echo ""
+    echo "Output:"
+    echo "  8 MB normal → firmware/update.bin"
+    echo "  8 MB beta   → firmware/update_beta.bin"
+    echo "  4 MB normal → firmware/update_4mb.bin"
+    echo "  4 MB beta   → firmware/update_beta_4mb.bin"
 }
 
-# Trap to ensure cleanup on error
-trap 'print_error "Build failed!"; exit 1' ERR
+trap 'print_error "Build failed!"; restore_config; exit 1' ERR
 
-# Parse command line arguments
-BUILD_TYPE="${1:-both}"
-
-# Check for flags in any position
+# Parse args
 for arg in "$@"; do
-    if [ "$arg" = "--no-push" ]; then
-        NO_PUSH=true
-        print_info "Running in no-push mode: builds will be committed locally but not pushed to GitHub"
-        echo ""
-    elif [ "$arg" = "--no-commit" ]; then
-        NO_COMMIT=true
-        print_info "Running in no-commit mode: builds will only compile and copy files, no git operations"
-        echo ""
-    fi
+    case "$arg" in
+        4mb)        BUILD_SIZE="4mb" ;;
+        8mb)        BUILD_SIZE="8mb" ;;
+        all)        BUILD_SIZE="all" ;;
+        normal)     BUILD_TYPE="normal" ;;
+        beta)       BUILD_TYPE="beta" ;;
+        both)       BUILD_TYPE="both" ;;
+        --no-push)  NO_PUSH=true  && print_info "No-push mode" ;;
+        --no-commit) NO_COMMIT=true && print_info "No-commit mode" ;;
+        -h|--help|help) show_usage; exit 0 ;;
+        *) print_error "Unknown argument: $arg"; show_usage; exit 1 ;;
+    esac
 done
 
-# Main script logic
-case "$BUILD_TYPE" in
-    normal)
-        build_normal
-        ;;
-    beta)
-        build_beta
-        ;;
-    both)
-        build_both
-        ;;
-    -h|--help|help)
-        show_usage
-        ;;
-    --no-push|--no-commit)
-        # If flag is the first argument, default to both
-        build_both
-        ;;
-    *)
-        print_error "Invalid option: $BUILD_TYPE"
-        echo ""
-        show_usage
-        exit 1
-        ;;
+case "$BUILD_SIZE" in
+    8mb) build_size 8mb ;;
+    4mb) build_size 4mb ;;
+    all) build_size 8mb; echo ""; build_size 4mb ;;
 esac
 
-exit 0
+echo ""
+print_success "============================================="
+print_success "All builds completed!"
+print_success "============================================="
