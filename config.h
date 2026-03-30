@@ -67,7 +67,7 @@
 #define EXCLUDED_RICS_DEFAULT "224,208,200,216,4520,4521"
 
 // Number of messages kept in the web status log (newest first).
-#define POCSAG_LOG_SIZE          20   // total stored (ring buffer)
+#define POCSAG_LOG_SIZE          10   // total stored (ring buffer)
 #define POCSAG_LOG_WEB_MAX       10   // max entries served to the web UI
 
 // Reserved pixel columns for the POCSAG icon (icon width + 1 px gap).

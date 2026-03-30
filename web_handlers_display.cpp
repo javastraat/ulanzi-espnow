@@ -50,29 +50,26 @@ void registerDisplayHandlers() {
     if (hasTm) snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d",
                         t.tm_hour, t.tm_min, t.tm_sec);
 
-    // Build POCSAG log array (newest first, deduped, capped at POCSAG_LOG_WEB_MAX)
+    // Build POCSAG log array (newest first, deduped by hash, capped at POCSAG_LOG_WEB_MAX)
+    // Use a small djb2 hash of ric+msg to avoid large stack arrays
+    auto pocHash = [](uint32_t ric, const char* msg) -> uint32_t {
+      uint32_t h = 5381 ^ ric;
+      for (const char* p = msg; *p; p++) h = ((h << 5) + h) ^ (uint8_t)*p;
+      return h;
+    };
     char logBuf[1100]; int lp = 0;
     lp += snprintf(logBuf + lp, sizeof(logBuf) - lp, "[");
     bool logFirst = true;
     int  logShown = 0;
-    // dedup: track seen ric+msg combos
-    uint32_t seenRic[POCSAG_LOG_SIZE];
-    char     seenMsg[POCSAG_LOG_SIZE][POCSAG_MSG_MAX_LEN + 1];
+    uint32_t seenHash[POCSAG_LOG_SIZE];
     uint8_t  seenCount = 0;
     for (int i = 0; i < wsPocsagFill && logShown < POCSAG_LOG_WEB_MAX; i++) {
       int idx = ((int)wsPocsagHead - 1 - i + POCSAG_LOG_SIZE) % POCSAG_LOG_SIZE;
+      uint32_t h = pocHash(wsPocsagLog[idx].ric, wsPocsagLog[idx].msg);
       bool dup = false;
-      for (int j = 0; j < seenCount; j++) {
-        if (seenRic[j] == wsPocsagLog[idx].ric &&
-            strncmp(seenMsg[j], wsPocsagLog[idx].msg, POCSAG_MSG_MAX_LEN) == 0) {
-          dup = true; break;
-        }
-      }
+      for (int j = 0; j < seenCount; j++) if (seenHash[j] == h) { dup = true; break; }
       if (dup) continue;
-      seenRic[seenCount] = wsPocsagLog[idx].ric;
-      strncpy(seenMsg[seenCount], wsPocsagLog[idx].msg, POCSAG_MSG_MAX_LEN);
-      seenMsg[seenCount][POCSAG_MSG_MAX_LEN] = '\0';
-      seenCount++;
+      seenHash[seenCount++] = h;
       char safe[POCSAG_MSG_MAX_LEN + 1]; int si = 0;
       for (int j = 0; wsPocsagLog[idx].msg[j] && si < POCSAG_MSG_MAX_LEN; j++) {
         char c = wsPocsagLog[idx].msg[j];
