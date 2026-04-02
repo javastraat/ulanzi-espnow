@@ -181,8 +181,8 @@ void processPocsagPacket(const EspNowPocsagPacket& pkt) {
 
 #if RECV_ESPNOW2
 
-#define MESH_HEARTBEAT_INTERVAL  60000
-#define MESH_SENSOR_INTERVAL     30000
+#define MESH_HEARTBEAT_INTERVAL  120000
+#define MESH_SENSOR_INTERVAL      60000
 
 static unsigned long meshLastHeartbeat = 0;
 static unsigned long meshLastSensor    = 0;
